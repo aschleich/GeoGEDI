@@ -158,7 +158,9 @@ flowaccum <- function(getOpt,StatFold,criteria,var,sht=""){
   gridded(Stat2) <- TRUE
   r <- raster(Stat2)
   proj4string(r) <- CRS("+init=epsg:2154")  # fix coordiante system to same as used data (here Lambert 93 was used)
-
+  chemin <- paste0(StatFold,"rasterRStat2.tif")
+  writeRaster(r,chemin,overwrite=T)
+	
   # plot error map if wanted
   ### png(filename=paste0(StatFold,"MNT_sht",sht,"_",orb,'_',var,".png"))
   ### plot(r,main=paste0(StatFold,"MNT_sht",sht,"_",orb,'_',var),asp=1,xlim=c(-50,50),ylim=c(-50,50))
