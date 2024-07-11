@@ -13,7 +13,7 @@ docker build -t geogedi .
 Default user in container will be geogedi (uid=1001). You can modify the "useradd" command in Dockerfile to match your user uid and gid.  
 
 ## Input data
-- Digital Elevation Model of ground elevations
+- Digital Terrain Model
 - GEDI L2A footprints : shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
 
 ## Scripts
@@ -36,7 +36,7 @@ export GDAL_DISABLE_READDIR_ON_OPEN=TRUE
 # Single file
 ./DTMmean.R D001.vrt
 # Sequential
-./DTMmean.R D001.vrt D002.vrt [...] D0X.vrt
+./DTMmean.R D001.vrt D002.vrt [...] D0XX.vrt
 # Async using GNU parallel
 ls *.vrt | parallel -j 4 ./DTMmean.R {}
 # Using docker

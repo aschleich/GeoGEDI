@@ -7,7 +7,7 @@ library(terra)
 
 terraOptions(progress=0)
 
-########## Mean smooth MNT in a 25m window ##########
+########## Mean smooth DTM in a 25m window ##########
 radius <- 12.5
 method <- "sum"
 args <- commandArgs(trailingOnly = TRUE)
