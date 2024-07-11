@@ -6,7 +6,6 @@ library(terra)
 terraOptions(progress=0)
 
 smooth <- function(path) {
-  library(terra)
   ######## Mean smooth DTM in a 25m window ##########
   dtm <- terra::rast(path)
   
