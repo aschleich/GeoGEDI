@@ -23,15 +23,15 @@ smooth <- function(path) {
   if (method == "max") {
     kernel[which(kernel != 0)] <- 1
   }
-  smooth_raster <- terra::focal(dtm, kernel, fun = method)
-  terra::crs(smooth_raster) <- terra::crs(dtm)
+  smooth_dtm <- terra::focal(dtm, kernel, fun = method)
+  terra::crs(smooth_dtm) <- terra::crs(dtm)
   rm(dtm)
   gc()
 
   # Write output with GDAL create options
   out_tif <- paste(file_path_sans_ext(path), "_smooth.tif", sep = "")
   copt <- c("COMPRESS=ZSTD", "ZLEVEL=1", "PREDICTOR=3", "TILED=YES", "BIGTIFF=IF_SAFER")
-  terra::writeRaster(smooth_raster, out_tif, overwrite = TRUE, gdal = copt, NAflag = na)
+  terra::writeRaster(smooth_dtm, out_tif, overwrite = TRUE, gdal = copt, NAflag = na)
 }
 
 for (f in args) {
