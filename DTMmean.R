@@ -14,18 +14,18 @@ args <- commandArgs(trailingOnly = TRUE)
 
 smooth <- function(path) {
   # Read input data and NA value
-  ras <- terra::rast(path)
+  dtm <- terra::rast(path)
   na <- grep("NoData Value", describe(path), value = TRUE)
   na <- strsplit(na, "=")[[1]][2] |> as.numeric()
 
   # Prepare kernel and apply smoothing
-  focal_weight_matrix <- terra::focalMat(ras, radius, "circle")
+  kernel <- terra::focalMat(dtm, radius, "circle")
   if (method == "max") {
-    focal_weight_matrix[which(focal_weight_matrix != 0)] <- 1
+    kernel[which(kernel != 0)] <- 1
   }
-  smooth_raster <- terra::focal(ras, focal_weight_matrix, fun = method)
-  terra::crs(smooth_raster) <- terra::crs(ras)
-  rm(ras)
+  smooth_raster <- terra::focal(dtm, kernel, fun = method)
+  terra::crs(smooth_raster) <- terra::crs(dtm)
+  rm(dtm)
   gc()
 
   # Write output with GDAL create options
