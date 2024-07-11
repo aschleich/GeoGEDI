@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+suppressPackageStartupMessages(library(terra))
+
 library(tools)
 library(stringr)
 library(terra)
@@ -9,7 +11,7 @@ method <- "sum"
 args <- commandArgs(trailingOnly = TRUE)
 
 for (f in args) {
-  message("Processing ", basename(f))
+  #message("Processing ", basename(f))
 
   # Read input data and NA value
   ras <- terra::rast(f)
@@ -29,6 +31,6 @@ for (f in args) {
   terra::crs(smooth_raster) <- terra::crs(ras)
   terra::writeRaster(
     smooth_raster, out_tif,
-    overwrite = TRUE, gdal = copt, NAflag = na
+    overwrite = TRUE, gdal = copt, NAflag = na, progress = 0
   )
 }
