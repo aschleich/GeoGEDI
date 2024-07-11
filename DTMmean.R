@@ -27,7 +27,7 @@ for (f in args) {
 
   # Write output with GDAL create options
   out_tif <- paste(file_path_sans_ext(f), "_smooth.tif", sep = "")
-  copt <- c("COMPRESS=LZW", "TILED=YES", "BIGTIFF=IF_SAFER", "BLOCKXSIZE=512", "BLOCKYSIZE=512")
+  copt <- c("COMPRESS=ZSTD", "ZLEVEL=2", "PREDICTOR=3", "TILED=YES", "BIGTIFF=IF_SAFER")
   terra::crs(smooth_raster) <- terra::crs(ras)
   terra::writeRaster(
     smooth_raster, out_tif,
