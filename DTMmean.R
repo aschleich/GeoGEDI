@@ -5,6 +5,8 @@ library(tools)
 library(stringr)
 library(terra)
 
+terraOptions(progress=0)
+
 ########## Mean smooth MNT in a 25m window ##########
 radius <- 12.5
 method <- "sum"
@@ -27,10 +29,7 @@ for (f in args) {
 
   # Write output with GDAL create options
   out_tif <- paste(file_path_sans_ext(f), "_smooth.tif", sep = "")
-  copt <- c("COMPRESS=ZSTD", "ZLEVEL=2", "PREDICTOR=3", "TILED=YES", "BIGTIFF=IF_SAFER")
+  copt <- c("COMPRESS=ZSTD", "ZLEVEL=1", "PREDICTOR=3", "TILED=YES", "BIGTIFF=IF_SAFER")
   terra::crs(smooth_raster) <- terra::crs(ras)
-  terra::writeRaster(
-    smooth_raster, out_tif,
-    overwrite = TRUE, gdal = copt, NAflag = na, progress = 0
-  )
+  terra::writeRaster(smooth_raster, out_tif, overwrite = TRUE, gdal = copt, NAflag = na)
 }
