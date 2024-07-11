@@ -38,9 +38,9 @@ export GDAL_DISABLE_READDIR_ON_OPEN=TRUE
 # Sequential
 ./DTMmean.R D001.vrt D002.vrt [...] D0X.vrt
 # Async using GNU parallel
-ls *.vrt | parallel -j 8 ./DTMmean.R {}
+ls *.vrt | parallel -j 4 ./DTMmean.R {}
 # Using docker
-docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /data/gis/rgealti:/data -e geogedi bash -c "ls /data/*.vrt | parallel -j 8 ./DTMmean.R {}"
+docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /data/gis/rgealti:/data -e geogedi bash -c "ls /data/*.vrt | parallel -j 4 ./DTMmean.R {}"
 ```
 
 This will produce one file per VRT with name ${VRT basename}_smooth.tif, tiled and compressed with ZSTD level 1 + floating point predictor.
