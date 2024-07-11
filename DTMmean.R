@@ -25,8 +25,6 @@ smooth <- function(path) {
   }
   smooth_dtm <- terra::focal(dtm, kernel, fun = method)
   terra::crs(smooth_dtm) <- terra::crs(dtm)
-  rm(dtm)
-  gc()
 
   # Write output with GDAL create options
   out_tif <- paste(file_path_sans_ext(path), "_smooth.tif", sep = "")
