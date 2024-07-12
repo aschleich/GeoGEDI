@@ -24,9 +24,9 @@ Default user in container will be geogedi (uid=1001). You can modify the "userad
 
 ### DTMmean.R
 
-Apply focal mean to input DTM (preferably VRT file). With 64GB of RAM, you should be able to process 6 files in parallel.  
+Apply focal mean to input DTM (preferably VRT file). With 64GB of RAM, you should be able to process 5 files in parallel.  
 
-#### Usage :
+#### Usage:
 
 ```bash
 # Create a VRT with the right CRS and nodata (EPSG:5698 for France mainland, 5699 for Corsica)
@@ -45,9 +45,9 @@ export GDAL_DISABLE_READDIR_ON_OPEN=TRUE
 # Sequential
 ./DTMmean.R D001.vrt D002.vrt [...] D0XX.vrt
 # Parallel
-ls *.vrt | parallel -j 6 ./DTMmean.R {}
+ls *.vrt | parallel -j 5 ./DTMmean.R {}
 # Using docker
-docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /data/gis/rgealti:/data -e geogedi bash -c "ls /data/*.vrt | parallel -j 6 ./DTMmean.R {}"
+docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /data/gis/rgealti:/data -e geogedi bash -c "ls /data/*.vrt | parallel -j 5 ./DTMmean.R {}"
 ```
 
 This will produce one file per VRT with name ${VRT basename}_smooth.tif, tiled and compressed with ZSTD level 1 + floating point predictor.
