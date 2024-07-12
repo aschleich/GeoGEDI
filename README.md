@@ -43,7 +43,7 @@ done
 # Should improve VRT read speed
 export GDAL_DISABLE_READDIR_ON_OPEN=TRUE
 # Simple
-./DTMmean.R D0XX.vrt D0XX.tif
+./DTMmean.R D0XX.vrt D0XX_smoothed.tif
 # Parallel
 ls *.vrt | parallel -j 4 ./DTMmean.R {} {/.}.tif
 # Example using docker
@@ -51,7 +51,7 @@ docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /network/storage:/data -v /a/
 bash -c "ls /data/*.vrt | parallel -j 4 ./DTMmean.R {} /outputs/{/.}.tif"
 ```
 
-Output is a geotiff, tiled and compressed with ZSTD (level 1 + floating point predictor).
+Output is a GeoTIFF, tiled and compressed with ZSTD (level 1 + floating point predictor).
 
 ### GeoGEDIalgorithmParallel.R : run GeoGEDI algorithm, parallelised by orbit
 
