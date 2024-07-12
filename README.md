@@ -20,7 +20,7 @@ Default user in container will be geogedi (uid=1001). You can modify the "userad
 ## Input data
 
 - Digital Terrain Model
-- GEDI L2A footprints : shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
+- GEDI L2A data: shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
 
 ## Scripts
 
@@ -43,16 +43,15 @@ done
 # Should improve VRT read speed
 export GDAL_DISABLE_READDIR_ON_OPEN=TRUE
 # Simple
-./DTMmean.R D001.vrt
-# Sequential
-./DTMmean.R D001.vrt D002.vrt [...] D0XX.vrt
+./DTMmean.R D0XX.vrt D0XX.tif
 # Parallel
-ls *.vrt | parallel -j 4 ./DTMmean.R {}
-# Using docker
-docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /data/gis/rgealti:/data -e geogedi bash -c "ls /data/*.vrt | parallel -j 4 ./DTMmean.R {}"
+ls *.vrt | parallel -j 4 ./DTMmean.R {} {/.}.tif
+# Example using docker
+docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /network/storage:/data -v /a/fast/device:/outputs geogedi \
+bash -c "ls /data/*.vrt | parallel -j 4 ./DTMmean.R {} /outputs/{/.}.tif"
 ```
 
-This will produce one file per VRT with name ${VRT basename}_smooth.tif, tiled and compressed with ZSTD level 1 + floating point predictor.
+Output is a geotiff, tiled and compressed with ZSTD (level 1 + floating point predictor).
 
 ### GeoGEDIalgorithmParallel.R : run GeoGEDI algorithm, parallelised by orbit
 
