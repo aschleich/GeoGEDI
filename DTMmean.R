@@ -22,7 +22,7 @@ smooth <- function(path) {
       kernel[which(kernel != 0)] <- 1
     }
     # Apply focal function and write output
-    a <- terra::focal(dtm, w=kernel, fun=method, filename=outfile, wopt=list(gdal=copt, NAflag=nodata))
+    terra::focal(dtm, w=kernel, fun=method, filename=outfile, wopt=list(gdal=copt, NAflag=nodata))
   }
 }
 
