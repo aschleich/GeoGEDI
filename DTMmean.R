@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+library(tools)
 library(stringr)
 # Terra env
 suppressPackageStartupMessages(library(terra))
@@ -11,7 +12,7 @@ smooth <- function(path) {
   
   # Prepare output
   nodata <- grep("NoData Value", terra::describe(path), value = TRUE)
-  nodata <- strsplit(na, "=")[[1]][2] |> as.numeric()
+  nodata <- strsplit(nodata, "=")[[1]][2] |> as.numeric()
   outfile <- paste(file_path_sans_ext(path), "_smooth.tif", sep = "")
   gdalopt <- c("COMPRESS=ZSTD", "ZLEVEL=1", "PREDICTOR=3", "TILED=YES", "BIGTIFF=IF_SAFER")
   
@@ -24,7 +25,7 @@ smooth <- function(path) {
   }
   
   # Use faster C++ implementation of "terra::focal"
-  terra::focalCpp(dtm, kernel, method, fill_value=nodata, filename=outfile, wopt=list(gdalopt))
+  terra::focal(dtm, kernel, method, fill_value=nodata, filename=outfile, wopt=list(gdalopt))
 }
 
 for (f in commandArgs(trailingOnly = TRUE)) {
