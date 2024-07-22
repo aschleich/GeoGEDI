@@ -26,7 +26,7 @@ Default user in container will be geogedi (uid=1001). You can modify the "userad
 
 ### DTMmean.R
 
-Apply focal mean to input DTM (preferably VRT file). With 64GB of RAM, you should be able to process 4 files in parallel.  
+Apply focal mean to input DTM (use a VRT file instead of a huge GeoTIFF).
 
 #### Usage
 
@@ -44,15 +44,16 @@ done
 export GDAL_DISABLE_READDIR_ON_OPEN=TRUE
 # Simple
 ./DTMmean.R D0XX.vrt D0XX_smoothed.tif
-# Parallel
-ls *.vrt | parallel -j 4 ./DTMmean.R {} {/.}.tif
-# Example using docker
-docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /network/storage:/data -v /a/fast/device:/outputs geogedi \
-bash -c "ls /data/*.vrt | parallel -j 4 ./DTMmean.R {} /outputs/{/.}.tif"
+# Using GNU parallel
+bash -c "ls /data/*.vrt | parallel -j4 ./DTMmean.R {} outputs/{/.}.tif"
+# Using a bash for loop in docker
+docker run -e GDAL_DISABLE_READDIR_ON_OPEN=TRUE -v /data:/data geogedi bash -c "for f in /data/*.vrt ; do ./DTMmean.R $f /outputs/{f%%.vrt}.tif"
 ```
 
 Output is a GeoTIFF, tiled and compressed with ZSTD (level 1 + floating point predictor).
 
-### GeoGEDIalgorithmParallel.R : run GeoGEDI algorithm, parallelised by orbit
+### ExtractH5data.R
 
-### GeoGEDIalgorithm.R (old version : not parallelised)
+### GeoGEDIalgorithmParallel.R : run GeoGEDI algorithm, parallelized by orbit
+
+### GeoGEDIalgorithm.R (legacy / not parallelized)
