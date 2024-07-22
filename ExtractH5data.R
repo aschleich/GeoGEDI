@@ -136,7 +136,7 @@ for (file in files) {
   gedi_data$elevRef <- gedi_data$elev_gedi - gedi_data$elevgeoid_grid
 
   # Reproject data to Lambert
-  gedi_data_proj <- project(gedi_data, paste0("epsg:", epsg_code))
+  gedi_data_proj <- terra::project(gedi_data, paste0("epsg:", epsg_code))
 
   # Extract columns of X and Y coordinates
   gedi_data$X_L93 <- terra::geom(gedi_data_proj)[, 3]
