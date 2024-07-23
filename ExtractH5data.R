@@ -36,10 +36,10 @@ variables <- c(
   "/lat_lowestmode",
   "/lon_lowestmode",
   "/elev_lowestmode",
-  "/degrade_flag",
   "/digital_elevation_model",
   "/surface_flag",
   "/quality_flag",
+  "/degrade_flag",
   "/sensitivity",
   "/delta_time",
   "/elevation_bias_flag",
@@ -47,13 +47,13 @@ variables <- c(
   "/selected_mode",
   "/selected_mode_flag",
   "/selected_algorithm",
+  "/energy_total",
+  "/rx_assess/rx_maxamp",
   "/land_cover_data/landsat_treecover",
   "/land_cover_data/modis_nonvegetated",
   "/land_cover_data/modis_nonvegetated_sd",
   "/land_cover_data/modis_treecover",
-  "/land_cover_data/modis_treecover_sd",
-  "/energy_total",
-  "/rx_assess/rx_maxamp"
+  "/land_cover_data/modis_treecover_sd"
 )
 
 
@@ -110,7 +110,7 @@ for (f in files) {
         gedi_data$geoid_height <- terra::extract(geoid_grid, project(gedi_data, geoid_crs))
       })
       # h(IGN69) = h(WGS84) - h(RAF18)
-      gedi_data$elev_shifted <- gedi_data$digital_elevation_model - gedi_data$geoid_height
+      gedi_data$elev_ngf <- gedi_data$elev_lowestmode - gedi_data$geoid_height
 
       # Reproject data to Lambert
       gedi_data_proj <- terra::project(gedi_data, paste0("epsg:", epsg_code))
@@ -130,7 +130,7 @@ for (f in files) {
       }
 
       if (dim(gedi_data_proj)[1] == 0) {
-        warning("Couldn't find any good quality samples")
+        print("Couldn't find any good quality samples")
       } else {
         print(paste("Found", toString(dim(gedi_data_proj)[1]), "samples"))
         final_df <- rbind(final_df, gedi_data_proj)
@@ -139,7 +139,7 @@ for (f in files) {
       h5closeAll()
     },
     error = function(e) {
-      print("Failed to process ", f)
+      print(paste("Failed to process ", f))
       print(e)
     }
   )
