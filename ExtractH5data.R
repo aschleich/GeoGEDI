@@ -5,6 +5,7 @@
 library(dplyr, warn.conflicts = FALSE)
 library(terra)
 library(rhdf5)
+library(bit64)
 
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
@@ -59,12 +60,12 @@ time_start <- Sys.time()
 final_df <- data.frame()
 
 # Loop on all files (each file one orbit)
-for (file in files) {
-  print(paste0("Processing ", file))
+for (f in files) {
+  print(paste0("Processing ", f))
 
   tryCatch(
     {
-      h5_obj <- rhdf5::H5Fopen(file)
+      h5_obj <- rhdf5::H5Fopen(f)
       gedi_data <- data.frame()
 
       # Loop all the beams of one file (=all 8 beams from one orbit)
@@ -141,7 +142,7 @@ for (file in files) {
       h5closeAll()
     },
     error = function(e) {
-      print("Failed to process ", file)
+      print("Failed to process ", f)
       print(e)
     }
   )
