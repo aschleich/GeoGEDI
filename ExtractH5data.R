@@ -2,7 +2,7 @@
 #---------------------------
 # Convert HH5 GEDI data to RDS file + shift z values using geoid
 #---------------------------
-library(dplyr)
+library(dplyr, warn.conflicts = FALSE)
 library(terra)
 library(rhdf5)
 
@@ -28,7 +28,7 @@ geoid_grid <- terra::rast(geoid_grid_file)
 
 max_elevation_diff <- 300
 quality_filter <- FALSE
-out_vector <- FALSE
+out_vector <- TRUE
 variables <- c(
   "/lat_lowestmode",
   "/lon_lowestmode",
@@ -125,7 +125,7 @@ for (file in files) {
 
       # Keep only quality data
       if (quality_filter) {
-        #gedi_data_proj <- subset(gedi_data_proj, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01" | surface_flag == "01" & degrade_flag == "01" & quality_flag == "01")
+        # gedi_data_proj <- subset(gedi_data_proj, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01" | surface_flag == "01" & degrade_flag == "01" & quality_flag == "01")
         gedi_data_proj <- subset(gedi_data_proj, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
       }
 
