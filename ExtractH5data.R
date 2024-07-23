@@ -2,10 +2,12 @@
 #---------------------------
 # Convert HDF5 GEDI data to RDS file + shift z values using geoid
 #---------------------------
+suppressPackageStartupMessages(library(bit64))
+library(bit64, warn.conflicts = FALSE)
 library(dplyr, warn.conflicts = FALSE)
+suppressPackageStartupMessages(library(terra))
 library(terra)
 library(rhdf5)
-library(bit64)
 
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
@@ -30,6 +32,7 @@ geoid_grid <- terra::rast(geoid_grid_file)
 quality_filter <- TRUE
 out_vector <- TRUE
 variables <- c(
+  "/shot_number",
   "/lat_lowestmode",
   "/lon_lowestmode",
   "/elev_lowestmode",
@@ -37,7 +40,6 @@ variables <- c(
   "/digital_elevation_model",
   "/surface_flag",
   "/quality_flag",
-  "/shot_number",
   "/sensitivity",
   "/delta_time",
   "/elevation_bias_flag",
@@ -99,15 +101,16 @@ for (f in files) {
       } # end loop on beams
 
       # From data.frame to SpatVector
-      geom_cols =  c("lon_lowestmode", "lat_lowestmode")
+      geom_cols <- c("lon_lowestmode", "lat_lowestmode")
       gedi_data <- terra::vect(gedi_data, geom = geom_cols, crs = "epsg:4326")
+
       # Transform height to altitude using geoid undulation grid
-      # h(IGN69) equals h(WGS84) minus h(RAF or RAC)
       geoid_crs <- terra::crs(geoid_grid)
       suppressWarnings({
-        gedi_data$elevgeoid_grid <- terra::extract(geoid_grid, project(gedi_data, geoid_crs))
+        gedi_data$geoid_height <- terra::extract(geoid_grid, project(gedi_data, geoid_crs))
       })
-      gedi_data$elevRef <- gedi_data$elev_gedi - gedi_data$elevgeoid_grid
+      # h(IGN69) = h(WGS84) - h(RAF18)
+      gedi_data$elev_shifted <- gedi_data$digital_elevation_model - gedi_data$geoid_height
 
       # Reproject data to Lambert
       gedi_data_proj <- terra::project(gedi_data, paste0("epsg:", epsg_code))
