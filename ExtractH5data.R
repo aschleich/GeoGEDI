@@ -12,6 +12,7 @@ library(rhdf5)
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
 
+dir.create("trash")
 datadir <- arguments[1]
 files <- paste0(datadir, "/", dir(datadir, pattern = "*.h5", recursive = TRUE))
 
@@ -56,8 +57,6 @@ variables <- c(
   "/land_cover_data/modis_treecover_sd"
 )
 
-
-time_start <- Sys.time()
 final_df <- data.frame()
 
 # Loop on all files (each file one orbit)
@@ -125,6 +124,7 @@ for (f in files) {
       gedi_data_proj <- as.data.frame(gedi_data_proj)
 
       # Keep only quality data
+      n_samples <- dim(gedi_data_proj)[1]
       if (quality_filter) {
         gedi_data_proj <- subset(gedi_data_proj, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
       }
@@ -132,36 +132,32 @@ for (f in files) {
       if (dim(gedi_data_proj)[1] == 0) {
         print("Couldn't find any good quality samples")
       } else {
-        print(paste("Found", toString(dim(gedi_data_proj)[1]), "samples"))
+        print(paste0("Extracted ", dim(gedi_data_proj)[1], "/", n_samples, " samples"))
         final_df <- rbind(final_df, gedi_data_proj)
       } # end loop rbind data to final dataframe
 
       h5closeAll()
     },
     error = function(e) {
-      print(paste("Failed to process ", f))
+      print(paste0("Failed to process ", f, ", moving to trash folder"))
       print(e)
+      file.copy(f, paste0("trash/", basename(f)))
+      file.remove(f)
     }
   )
 } # end loop for file
-
-time_end <- Sys.time()
 
 final_df$orbit <- substr(final_df$shot_number, 1, 4)
 
 # Count number of different final orbits
 nb_orbit <- final_df %>% summarise(Unique_Elements = n_distinct(orbit))
-elapsed_time <- round(time_end - time_start, 2)
-print(paste("Processed", toString(nb_orbit), "orbits in", elapsed_time, "s"))
 
 # Add variable power to define full power and half power beam
 half_beam_names <- c("BEAM0011", "BEAM0010", "BEAM0001", "BEAM0000")
 final_df$power <- ifelse(final_df$beam_name %in% half_beam_names, "half", "full")
 
 # Save entire dataframe, and one for full beams only
-terra::saveRDS(final_df, file = "gedi_data_all.rds")
-final_df_full <- final_df %>% filter(power == "full")
-terra::saveRDS(final_df_full, file = "gedi_data_full.rds")
+terra::saveRDS(final_df, file = "gedi_data.rds")
 
 if (out_vector) {
   gdf <- terra::vect(final_df, geom = c("X_wgs", "Y_wgs"), crs = "EPSG:4326")
