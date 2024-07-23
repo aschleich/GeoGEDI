@@ -1,9 +1,7 @@
 #!/usr/bin/env Rscript
 library(tools)
 library(stringr)
-# Terra env
 suppressPackageStartupMessages(library(terra))
-library(terra)
 terraOptions(progress = 0)
 
 smooth <- function(inpath, outpath) {
