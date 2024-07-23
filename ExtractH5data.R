@@ -127,7 +127,7 @@ for (f in files) {
       }
 
       if (dim(gedi_data_proj)[1] == 0) {
-        warning("Couldn't find good quality samples in our bbox")
+        warning("Couldn't find any good quality samples")
       } else {
         print(paste("Found", toString(dim(gedi_data_proj)[1]), "samples"))
         final_df <- rbind(final_df, gedi_data_proj)
