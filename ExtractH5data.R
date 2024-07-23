@@ -12,7 +12,9 @@ library(rhdf5)
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
 
-dir.create("trash")
+if (! dir.exists("trash")) {
+  dir.create("trash")
+}
 datadir <- arguments[1]
 files <- paste0(datadir, "/", dir(datadir, pattern = "*.h5", recursive = TRUE))
 
@@ -106,7 +108,7 @@ for (f in files) {
       # Transform height to altitude using geoid undulation grid
       geoid_crs <- terra::crs(geoid_grid)
       suppressWarnings({
-        gedi_data$geoid_height <- terra::extract(geoid_grid, project(gedi_data, geoid_crs))
+        gedi_data$geoid_height <- terra::extract(geoid_grid, project(gedi_data, geoid_crs))[2]
       })
       # h(IGN69) = h(WGS84) - h(RAF18)
       gedi_data$elev_ngf <- gedi_data$elev_lowestmode - gedi_data$geoid_height
