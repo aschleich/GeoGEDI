@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 #---------------------------
-# Convert HH5 GEDI data to RDS file + shift z values using geoid
+# Convert HDF5 GEDI data to RDS file + shift z values using geoid
 #---------------------------
 library(dplyr, warn.conflicts = FALSE)
 library(terra)
@@ -83,7 +83,8 @@ for (file in files) {
         }
 
         data <- lapply(variables, get_dataset)
-        col_names <- unlist(lapply(variables, function(varname) tail(unlist(strsplit(varname, "/")), 1)))
+        col_names <- lapply(variables, function(varname) tail(unlist(strsplit(varname, "/")), 1))
+        col_names <- unlist(col_names)
         # rh98 <- H5Dread(eval(parse(text=paste0("h5_obj&'/",beam_name,"/rh")[99,] #98%
         # rh100 <- H5Dread(eval(parse(text=paste0("h5_obj&'/",beam_name,"/rh")[101,] #100%
         # rh0 <- H5Dread(eval(parse(text=paste0("h5_obj&'/",beam_name,"/rh")[1,] #0%
@@ -98,11 +99,12 @@ for (file in files) {
       } # end loop on beams
 
       # Filter elevation
-      # gedi_data$diff_elevgedi <- gedi_data$elev_gedi - gedi_data$dem_gedi
-      # gedi_data <- gedi_data %>% filter(diff_elevgedi < max_elevation_diff)
+      gedi_data$diff_elevgedi <- gedi_data$elev_gedi - gedi_data$dem_gedi
+      gedi_data <- gedi_data %>% filter(diff_elevgedi < max_elevation_diff)
 
       # From data.frame to SpatVector
-      gedi_data <- terra::vect(gedi_data, geom = c("lon_lowestmode", "lat_lowestmode"), crs = "epsg:4326")
+      geom_cols =  c("lon_lowestmode", "lat_lowestmode")
+      gedi_data <- terra::vect(gedi_data, geom = geom_cols, crs = "epsg:4326")
       # Transform height to altitude using geoid undulation grid
       # h(IGN69) equals h(WGS84) minus h(RAF or RAC)
       geoid_crs <- terra::crs(geoid_grid)
