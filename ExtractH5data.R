@@ -27,8 +27,7 @@ if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
 }
 geoid_grid <- terra::rast(geoid_grid_file)
 
-max_elevation_diff <- 300
-quality_filter <- FALSE
+quality_filter <- TRUE
 out_vector <- TRUE
 variables <- c(
   "/lat_lowestmode",
@@ -99,10 +98,6 @@ for (f in files) {
         gedi_data <- rbind(gedi_data, beam_data)
       } # end loop on beams
 
-      # Filter elevation
-      gedi_data$diff_elevgedi <- gedi_data$elev_gedi - gedi_data$dem_gedi
-      gedi_data <- gedi_data %>% filter(diff_elevgedi < max_elevation_diff)
-
       # From data.frame to SpatVector
       geom_cols =  c("lon_lowestmode", "lat_lowestmode")
       gedi_data <- terra::vect(gedi_data, geom = geom_cols, crs = "epsg:4326")
@@ -128,7 +123,6 @@ for (f in files) {
 
       # Keep only quality data
       if (quality_filter) {
-        # gedi_data_proj <- subset(gedi_data_proj, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01" | surface_flag == "01" & degrade_flag == "01" & quality_flag == "01")
         gedi_data_proj <- subset(gedi_data_proj, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
       }
 
