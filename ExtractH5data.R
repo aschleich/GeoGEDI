@@ -1,12 +1,13 @@
 #!/usr/bin/env Rscript
-#---------------------------
+#################################################################
 # Convert HDF5 GEDI data to RDS file + shift z values using geoid
-#---------------------------
+#################################################################
+
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
 suppressPackageStartupMessages(library(terra))
 library(dplyr, warn.conflicts = FALSE)
+library(purrr, warn.conflicts = FALSE)
 library(rhdf5)
-library(purrr)
 
 quality_filter <- TRUE
 out_vector <- TRUE
