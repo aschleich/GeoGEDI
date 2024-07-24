@@ -2,10 +2,11 @@
 #---------------------------
 # Convert HDF5 GEDI data to RDS file + shift z values using geoid
 #---------------------------
-suppressPackageStartupMessages(library(library(bit64, warn.conflicts = FALSE)))
+suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
 suppressPackageStartupMessages(library(terra))
 library(dplyr, warn.conflicts = FALSE)
 library(rhdf5)
+library(purrr)
 
 quality_filter <- TRUE
 out_vector <- TRUE
@@ -61,13 +62,13 @@ process_beam <- function(h5_obj, beam_num) {
   col_names <- c("beam_name", col_names)
   beam_df <- as.data.frame(data, col.names = col_names)
   beam_df$power <- ifelse(beam_df$beam_name %in% half_beam_names, "half", "full")
-
   return(beam_df)
 }
 
 process_orbit <- function(h5_file) {
   h5_obj <- rhdf5::H5Fopen(h5_file)
-  gedi_df <- as.data.frame(do.call(process_beam(h5_obj, 1:8)))
+  fun <- partial(process_beam, h5_obj)
+  gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, fun)))
   h5closeAll()
 
   gedi_df$orbit <- substr(gedi_df$shot_number, 1, 4)
@@ -109,6 +110,8 @@ process_orbit <- function(h5_file) {
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
 datadir <- arguments[1]
+datadir <- "/media/data/lidar/gedi/corse/2432495856"
+
 files <- paste0(datadir, "/", dir(datadir, pattern = "*.h5", recursive = TRUE))
 if (! dir.exists("trash")) {
   dir.create("trash")
@@ -117,6 +120,7 @@ if (! dir.exists("trash")) {
 # First download IGN's grid of geoid undulation, converted from txt to GeoTIFF
 # See PROJ-data github repository: https://github.com/OSGeo/PROJ-data/tree/master/fr_ign
 geoid_grid_file <- arguments[2]
+geoid_grid_file <- "/home/vidlb/Projets/umr_tetis/geogedi/Geodesie/fr_ign_RAC09.tif"
 if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
   epsg_code <- "5698"
 } else if (startsWith(basename(geoid_grid_file), "fr_ign_RAC")) {
@@ -138,7 +142,7 @@ for (f in files) {
     },
     # When H5 file is corrupted
     error = function(e) {
-      print(paste0("Failed to process ", h5_file, ", moving to trash folder"))
+      print(paste0("Failed to process ", f, ", moving to trash folder"))
       print(e)
       # TODO: check error message
       #file.copy(h5_file, paste0("trash/", basename(h5_file)))
