@@ -110,17 +110,15 @@ process_orbit <- function(h5_file) {
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
 datadir <- arguments[1]
-datadir <- "/media/data/lidar/gedi/corse/2432495856"
 
 files <- paste0(datadir, "/", dir(datadir, pattern = "*.h5", recursive = TRUE))
-if (! dir.exists("trash")) {
+if (!dir.exists("trash")) {
   dir.create("trash")
 }
 
 # First download IGN's grid of geoid undulation, converted from txt to GeoTIFF
 # See PROJ-data github repository: https://github.com/OSGeo/PROJ-data/tree/master/fr_ign
 geoid_grid_file <- arguments[2]
-geoid_grid_file <- "/home/vidlb/Projets/umr_tetis/geogedi/Geodesie/fr_ign_RAC09.tif"
 if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
   epsg_code <- "5698"
 } else if (startsWith(basename(geoid_grid_file), "fr_ign_RAC")) {
@@ -142,11 +140,13 @@ for (f in files) {
     },
     # When H5 file is corrupted
     error = function(e) {
-      print(paste0("Failed to process ", f, ", moving to trash folder"))
       print(e)
-      # TODO: check error message
-      #file.copy(h5_file, paste0("trash/", basename(h5_file)))
-      #file.remove(h5_file)
+      if (grepl("HDF5. Object header. Can't open object.", e)) {
+        # TODO: check error message
+        print(paste0("Failed to process ", f, ", moving to trash folder"))
+        file.copy(f, paste0("trash/", basename(f)))
+        file.remove(f)
+      }
     }
   )
 }
