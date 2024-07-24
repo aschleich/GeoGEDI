@@ -66,7 +66,7 @@ process_beam <- function(h5_obj, beam_num) {
   return(beam_df)
 }
 
-process_orbit <- function(h5_file) {
+process_orbit <- function(h5_file, epsg_code) {
   h5_obj <- rhdf5::H5Fopen(h5_file)
   fun <- partial(process_beam, h5_obj)
   gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, fun)))
@@ -137,7 +137,7 @@ for (f in files) {
   print(paste0("Processing ", f))
   tryCatch(
     {
-      final_df <- rbind(final_df, process_orbit(f))
+      final_df <- rbind(final_df, process_orbit(f, epsg_code))
     },
     # When H5 file is corrupted
     error = function(e) {
