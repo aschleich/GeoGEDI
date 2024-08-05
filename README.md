@@ -66,16 +66,13 @@ Preprocess a directory of HDF5 files and store usefull variables to a Rdata file
 #### Input data
 
 Input HDF5 files can be downloaded from EarthData website, using the GEDI02_A_V002 dataset located in EarthDataCloud.  
-A bounding box ROI must be provided as your high res polygon would be transformed to a very simplifed shape.  
-Spatial subset can be enabled in the processing settings, after products selection is done.  
-Finer spatial subset will be performed using the R script.  
 
-When the order is complete, you may download a list of URLs using the [EarthData dashboard](https://search.earthdata.nasa.gov/downloads).  
-You'll need to setup a `.netrc` file following this [tutorial](https://harmony.earthdata.nasa.gov/docs#getting-started).  
+A bounding box ROI must be provided as your high res polygon would be transformed to a very simplifed shape. Spatial subset can be enabled in the processing settings, after products selection is done. Finer spatial subset will be performed using the R script.  
 
-The best way to download the products located in the Harmony endpoint is with curl. It is a fast server so you can do several downloads in parallel. Avoid using parallel while writing directly to a network storage, simply download to a fast storage and move it later.  
+Once the order is complete, you may download a list of URLs from the [EarthData dashboard](https://search.earthdata.nasa.gov/downloads).  
+Then you'll need to setup a `.netrc` file following this [tutorial](https://harmony.earthdata.nasa.gov/docs#getting-started).  
 
-H5 files are uncompressed so it is advised to do it on-the-fly before writing to disk (~ 15x less disk space required).  
+The best way to download the products located in the Harmony endpoint is with curl. It is a fast server so you can do several downloads in parallel. Avoid using parallel while writing directly to a network storage, simply download to a fast storage and move it later. H5 files are uncompressed so it is advised to do it on-the-fly before writing to disk (~ 15x less disk space required).  
 
 Use the following bash command to download and compress files, using curl and GNU parallel :  
 
