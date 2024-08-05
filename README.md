@@ -78,8 +78,10 @@ Finer spatial subset will be performed using the R script.
 When the order is complete, you may download a list of URLs using the [EarthData dashboard](https://search.earthdata.nasa.gov/downloads).  
 You'll need to setup a `.netrc` file following this [tutorial](https://harmony.earthdata.nasa.gov/docs#getting-started).  
 
-The best way to download the products located in the Harmony endpoint is with curl. It is a fast server so you can do several downloads in parallel.  
+The best way to download the products located in the Harmony endpoint is with curl. It is a fast server so you can do several downloads in parallel. Avoid using parallel while writing directly to a network storage, simply download to a fast storage and move it later.  
+
 H5 files are uncompressed so it is advised to do it on-the-fly before writing to disk (~ 15x less disk space required).  
+
 Use the following bash command to download and compress files, using curl and GNU parallel :  
 
 ```bash
@@ -89,7 +91,6 @@ cat 3664487056-Harmony.txt | parallel -j 8 "curl -Lnbj --silent {} | zip -q > {/
 ```
 
 The last part (printf and zipnote) is required in order to set the right filename within the zip file, since it is unknown ("-") because data is piped from stdin.  
-Avoid using parallel while writing directly to a network storage, simply download to a fast storage and move it later.  
 
 #### Usage
 
@@ -98,7 +99,7 @@ The script takes 3 arguments :
 
 - input directory of HDF5 files (unzipped)
 - output Rdata file path
-- optional input polygon for spatial subset
+- (TODO) optional input polygon for spatial subset
 
 ```bash
 cd /my/ouput/dir
