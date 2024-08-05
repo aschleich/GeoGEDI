@@ -18,11 +18,6 @@ docker build -t geogedi .
 
 Default user in container will be geogedi (uid=1001). You can modify the "useradd" command in Dockerfile to match your user uid and gid.  
 
-## Input data
-
-- Digital Terrain Model
-- GEDI L2A data: shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
-
 ## Scripts
 
 ### DTMmean.R
@@ -109,6 +104,11 @@ cd /my/ouput/dir
 ### GeoGEDIalgorithmParallel.R
 
 Run GeoGEDI algorithm, parallelized by orbit.  
+
+#### Input data
+
+- Smoothed Digital Terrain Model
+- GEDI variables saved as Rdata: shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
 
 ### GeoGEDIalgorithm.R
 
