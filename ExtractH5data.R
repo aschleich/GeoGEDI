@@ -10,7 +10,7 @@ library(purrr, warn.conflicts = FALSE)
 library(rhdf5)
 
 quality_filter <- TRUE
-out_vector <- TRUE
+out_vector <- FALSE
 variables <- c(
   "/shot_number",
   "/lat_lowestmode",
