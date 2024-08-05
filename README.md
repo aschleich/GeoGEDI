@@ -27,11 +27,12 @@ Default user in container will be geogedi (uid=1001). You can modify the "userad
 
 ### DTMmean.R
 
-Apply focal mean to input DTM (use a VRT file instead of a huge GeoTIFF).
+Apply focal mean to input DTM.
 
 #### Input data
 
-Some preliminary steps may be required to obtain the input DTM as a single file :  
+It is advised to use a VRT file instead of a huge GeoTIFF.  
+Some preliminary steps may be required to obtain a single file input DTM :  
 
 ```bash
 # Create a VRT with the right CRS and nodata (EPSG:5698 for France mainland, 5699 for Corsica)
@@ -110,4 +111,4 @@ Run GeoGEDI algorithm, parallelized by orbit.
 
 ### GeoGEDIalgorithm.R
 
-Legacy script (to be removed)
+Legacy script (to be removed).
