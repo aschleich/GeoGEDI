@@ -8,13 +8,8 @@ A. Schleich, S. Durrieu, M. Soma and C. Vega, "Improving GEDI Footprint Geolocat
 
 ## Requirements
 
-You may use any OS with R 4.* and geospatial libraries installed (terra).  
-A Linux OS is best recommended for the download and preprocessing steps.  
-To do it using Docker, you can build an image as follow :  
-
-```bash
-docker build -t geogedi .
-```
+You may use any OS with R 4.* and geospatial libraries installed (terra). A Linux OS is recommended.  
+To do it using Docker, you can build an image using `docker build -t geogedi .`.
 
 Default user in container will be geogedi (uid=1001). You can modify the "useradd" command in Dockerfile to match your user uid and gid.  
 
