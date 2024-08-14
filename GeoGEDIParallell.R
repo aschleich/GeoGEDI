@@ -262,15 +262,15 @@ process_orbit <- function(orb) {
 
   optim_accum <- merge(gedidata_ap, df_accum[, c("orbit", "x_offset", "y_offset")], by = c("orbit", "x_offset", "y_offset"))
 
-  # keep only needed variables
+  # Keep only needed variables
   gedidata_tile <- gedidata_ap %>%
     dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, y_shifted, x_shifted, elev, diff)
 
-  # order the dataframes
+  # Order the dataframes
   gedidata_tile <- gedidata_tile[order(gedidata_tile$delta_time), , drop = FALSE]
   optim_accum <- optim_accum[order(optim_accum$delta_time), , drop = FALSE]
 
-  # count number of footprints
+  # Count number of footprints
   gedidata_nbftp <- gedidata_tile %>%
     summarise(Unique_Elements = n_distinct(shot_number))
   gedidata_nbftp <- gedidata_nbftp[, 1]
