@@ -11,9 +11,6 @@ library(terra, warn.conflicts = FALSE)
 library(whitebox)
 library(ModelMetrics, warn.conflicts = FALSE)
 
-# library(foreach, warn.conflicts = FALSE)
-# library(doParallel)
-
 # Force R to print more decimals
 options(digits = 12)
 
@@ -37,6 +34,9 @@ quality_filter <- FALSE
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
+
+# For parallelization
+n_cores <- 1
 
 # Set Search window
 search_dist <- 50
@@ -356,23 +356,28 @@ process_orbit <- function(orb) {
   # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
   col_names <- c("shot_ftp", "x_offset", "y_offset", "id_cell_max_final", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
-  GeoGEDI_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = c("shot_number", "x_offset", "y_offset"), by.y = c("shot_ftp", "x_offset", "y_offset"))
+  by_x <- c("shot_number", "x_offset", "y_offset")
+  by_y <- c("shot_ftp", "x_offset", "y_offset")
+  GeoGEDI_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
   # saveRDS(GeoGEDI_data, paste0(results_dir, sep, "GeoGEDI_footprints_", orb, ".rds"))
   return(GeoGEDI_data)
 }
 
-#---------------------------
 # Parallel execution
-#---------------------------
+if (n_cores == 1) {
+  # Single core - simply lapply
+  final_result <- do.call(rbind, lapply(orbits, process_orbit))
+} else {
+  library(foreach, warn.conflicts = FALSE)
+  library(doParallel)
+  cl <- makeCluster(n_cores)
+  registerDoParallel(cl)
 
-# cl <- makeCluster(4)
-# registerDoParallel(cl)
+  results <- foreach(orb = orbits, .packages = c("plyr", "dplyr", "terra", "ModelMetrics")) %dopar% {
+    process_orbit(orb)
+  }
 
-# results <- foreach(orb = orbits, .packages = c("plyr", "dplyr", "terra", "ModelMetrics")) %dopar% {
-#  process_orbit(orb)
-# }
+  stopCluster(cl)
+}
 
-# stopCluster(cl)
-
-final_result <- do.call(rbind, lapply(orbits, process_orbit))
 saveRDS(final_result, paste0(results_dir, sep, "GeoGEDI_footprints.rds"))
