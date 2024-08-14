@@ -11,11 +11,11 @@ library(terra, warn.conflicts = FALSE)
 library(whitebox)
 library(ModelMetrics, warn.conflicts = FALSE)
 
-#library(foreach, warn.conflicts = FALSE)
-#library(doParallel)
+# library(foreach, warn.conflicts = FALSE)
+# library(doParallel)
 
 # Force R to print more decimals
-options(digits=12)
+options(digits = 12)
 
 if (.Platform$OS.type == "windows") {
   sep <- "\\"
@@ -27,17 +27,14 @@ if (.Platform$OS.type == "windows") {
 # Input files
 #------------------------------------------
 
-#arguments <- commandArgs(trailingOnly = TRUE)
-#gedidata <- readRDS(arguments[1])
-#dem_smooth_path = arguments[2]
-
-setwd("/home/vidlb/Projets/umr_tetis/geogedi/test/")
-gedidata <- readRDS("gedi_data.rds")
-dem_smooth_path <- "../MNT/corse.vrt"
+arguments <- commandArgs(trailingOnly = TRUE)
+gedidata_path <- arguments[1]
+dem_smooth_path <- arguments[2]
 
 target_crs <- crs(rast(dem_smooth_path))
 quality_filter <- FALSE
 
+gedidata <- readRDS(gedidata_path)
 if (quality_filter) {
   gedidata <- subset(gedidata, quality_flag == "01")
   gedidata <- subset(gedidata, degrage_flag == "00")
@@ -74,6 +71,13 @@ accum_dir <- "accum_rasters"
 plots_dir <- "error_maps"
 results_dir <- "results"
 
+setwd(dirname(gedidata_path))
+for (d in c(accum_dir, plots_dir, results_dir)) {
+  if (!dir.exists(d)) {
+    dir.create(d)
+  }
+}
+
 error_plots <- TRUE
 
 ## Keep only essential data
@@ -100,7 +104,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   df_1$y_offset <- as.numeric(df_1$y_offset)
 
   # create Error Map
-  sp::coordinates(df_1) <- ~x_offset + y_offset
+  sp::coordinates(df_1) <- ~ x_offset + y_offset
   df_2 <- df_1[, c(var)]
   sp::gridded(df_2) <- TRUE
   r <- terra::rast(df_2, crs = target_crs)
@@ -166,7 +170,6 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 }
 
 process_orbit <- function(orb) {
-
   dem_smooth <- rast(dem_smooth_path)
 
   #---------------------------
@@ -190,12 +193,12 @@ process_orbit <- function(orb) {
   allpoints$elev <- unlist(terra::extract(dem_smooth, geopoints)[2])
 
   # Only keep footprint if a value could be extracted for all positions of the search window
-  allpoints <- allpoints %>%
+  allpoints2 <- allpoints %>%
     group_by(shot_number) %>%
     filter(!any(is.na(elev))) %>%
     dplyr::summarise(count = n())
-  allpoints <- subset(allpoints, count == nb_extracted)
-  allpoints <- allpoints[allpoints$shot_number %in% allpoints$shot_number, ]
+  allpoints2 <- subset(allpoints2, count == nb_extracted)
+  allpoints <- allpoints[allpoints$shot_number %in% allpoints2$shot_number, ]
 
   saveRDS(allpoints, file = paste0(results_dir, sep, orb, ".rds"))
 
@@ -204,17 +207,18 @@ process_orbit <- function(orb) {
   gedidata_ap <- allpoints
   rm(allpoints)
   gc()
+  print(gedidata_ap)
   # Get difference between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
   gedidata_ap$diff <- gedidata_ap$elev - gedidata_ap$elev_ngf
 
   # Delete if diff > 100
   gedidata_ap <- gedidata_ap %>% filter(abs(diff) <= 100)
 
-  gedidata_ap <- gedidata_ap %>%
+  gedidata_ap2 <- gedidata_ap %>%
     group_by(shot_number) %>%
     filter(!any(is.na(elev))) %>%
     dplyr::summarise(count = n())
-  gedidata_ap <- subset(gedidata_ap, count == nb_extracted)
+  gedidata_ap2 <- subset(gedidata_ap2, count == nb_extracted)
   gedidata_ap <- gedidata_ap[gedidata_ap$shot_number %in% gedidata_ap2$shot_number, ]
 
   # General mean stat by orbit (with initial position (x_offset = 0 and y_offset = 0)
@@ -349,11 +353,11 @@ process_orbit <- function(orb) {
   }
 
   # save the final file
-  #saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
+  # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
-  col_names = c("shot_ftp", "x_offset", "y_offset", "id_cell_max_final", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
+  col_names <- c("shot_ftp", "x_offset", "y_offset", "id_cell_max_final", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
   GeoGEDI_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = c("shot_number", "x_offset", "y_offset"), by.y = c("shot_ftp", "x_offset", "y_offset"))
-  #saveRDS(GeoGEDI_data, paste0(results_dir, sep, "GeoGEDI_footprints_", orb, ".rds"))
+  # saveRDS(GeoGEDI_data, paste0(results_dir, sep, "GeoGEDI_footprints_", orb, ".rds"))
   return(GeoGEDI_data)
 }
 
@@ -365,14 +369,14 @@ process_orbit <- function(orb) {
 # Only if this value is in the DTM, so only if the footprint overlays the DTM raster,
 # then we also extract the elevation values of the surrounding search window
 
-#cl <- makeCluster(4)
-#registerDoParallel(cl)
+# cl <- makeCluster(4)
+# registerDoParallel(cl)
 
-#results <- foreach(orb = orbits, .packages = c("plyr", "dplyr", "terra", "ModelMetrics")) %dopar% {
+# results <- foreach(orb = orbits, .packages = c("plyr", "dplyr", "terra", "ModelMetrics")) %dopar% {
 #  process_orbit(orb)
-#}
+# }
 
-#stopCluster(cl)
+# stopCluster(cl)
 
 final_result <- do.call(rbind, lapply(orbits, process_orbit))
 saveRDS(final_result, paste0(results_dir, sep, "GeoGEDI_footprints.rds"))
