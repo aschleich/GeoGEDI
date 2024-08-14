@@ -101,26 +101,26 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   df_1$x_offset <- as.numeric(df_1$x_offset)
   df_1$y_offset <- as.numeric(df_1$y_offset)
 
-  # create Error Map
+  # Create Error Map
   sp::coordinates(df_1) <- ~ x_offset + y_offset
   df_2 <- df_1[, c(var)]
   sp::gridded(df_2) <- TRUE
-  r <- terra::rast(df_2, crs = target_crs)
+  error_map <- terra::rast(df_2)
+  crs(error_map) <- target_crs
 
   orb <- df_1$orbit[1]
 
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", var)
     png(filename = paste0(basename, ".png"))
-    plot(r, main = basename, asp = 1, xlim = c(-50, 50), lim = c(-50, 50))
+    plot(error_map, main = basename, asp = 1, xlim = c(-50, 50), lim = c(-50, 50))
     dev.off()
   }
 
   path <- paste0(accum_dir, sep, shot, "_error_map.tif")
-  terra::writeRaster(r, path, overwrite = TRUE)
+  terra::writeRaster(error_map, path, overwrite = TRUE)
 
   accum_path <- paste0(accum_dir, sep, shot, "_accumulation.tif")
-  Sys.sleep(3)
 
   # Apply flow accumulation FD8
   whitebox::wbt_fd8_flow_accumulation(
@@ -132,6 +132,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
     wd = getwd(),
     log = FALSE,
     clip = FALSE,
+    compress_rasters = TRUE,
     verbose_mode = TRUE
   )
   accum <- rast(accum_path)
@@ -368,7 +369,7 @@ process_orbit <- function(orb) {
 # Parallel execution
 if (n_cores == 1) {
   # Single core - simply lapply
-  final_result <- do.call(rbind, lapply(orbits, process_orbit))
+  results <- do.call(rbind, lapply(orbits, process_orbit))
 } else {
   library(foreach, warn.conflicts = FALSE)
   library(doParallel)
@@ -383,4 +384,4 @@ if (n_cores == 1) {
   stopCluster(cl)
 }
 
-saveRDS(final_result, paste0(results_dir, sep, "GeoGEDI_footprints.rds"))
+saveRDS(results, paste0(results_dir, sep, "GeoGEDI_footprints.rds"))
