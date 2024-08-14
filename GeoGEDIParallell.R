@@ -167,6 +167,10 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 }
 
 process_orbit <- function(orb) {
+  ## Extract elevation values orbit by orbit
+  # First we extract the elevation value at the initial position of each footprint.
+  # Only if this value is in the DTM, so only if the footprint overlays the DTM raster,
+  # then we also extract the elevation values of the surrounding search window
   dem_smooth <- rast(dem_smooth_path)
 
   #---------------------------
@@ -282,7 +286,7 @@ process_orbit <- function(orb) {
     time_ftp <- optim_accum[footprint, ]$delta_time
     beam_nameftp <- optim_accum[footprint, ]$beam_name
 
-    # set time to select neighboring footprints for cluster
+    # Set time to select neighboring footprints for cluster
     time_ftpmin <- time_ftp - step_half
     time_ftpmax <- time_ftp + step_half
 
@@ -309,7 +313,7 @@ process_orbit <- function(orb) {
       }
     }
 
-    # calculate statistics for each position in search window
+    # Calculate statistics for each position in search window
     df_tilespec <- gedidata_tilespec %>% # for cluster
       group_by(orbit, x_offset, y_offset) %>%
       dplyr::summarise(
@@ -322,7 +326,7 @@ process_orbit <- function(orb) {
         RMSE = ModelMetrics::rmse(elev, elev_ngf)
       )
 
-    # if at least X footprints in the search window
+    # If at least X footprints in the search window
     if (df_tilespec$footprint_nb[1] >= 1) { # ex.: 1 is executed for all footprints, may be changed to higher value (ex. 30) to not execute code for footprints with few neighbours.
 
       # Run flow accumulation algorithm to find best shift
@@ -341,14 +345,14 @@ process_orbit <- function(orb) {
 
       ftp_shift_bary <- rbind(ftp_shift_bary, df_accum_tilespec_bary)
 
-      # # save a backup every 1000 footprints
+      # Save a backup every 1000 footprints
       # if (footprint%%1000 == 0){
       #   saveRDS(ftp_shift_bary, paste0(accum_dir,"footprint_shift_bary_backup_", footprint, ".rds"))
       # }
     }
   }
 
-  # save the final file
+  # Save the final file
   # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
   col_names <- c("shot_ftp", "x_offset", "y_offset", "id_cell_max_final", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
@@ -360,10 +364,6 @@ process_orbit <- function(orb) {
 #---------------------------
 # Parallel execution
 #---------------------------
-## extract elevation values orbit by orbit
-# first we extract the elevation value at the initial position of each footprint.
-# Only if this value is in the DTM, so only if the footprint overlays the DTM raster,
-# then we also extract the elevation values of the surrounding search window
 
 # cl <- makeCluster(4)
 # registerDoParallel(cl)
