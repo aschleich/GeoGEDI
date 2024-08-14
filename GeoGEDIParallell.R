@@ -146,14 +146,14 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 
   # Select final "optimal" pixel out of flow accumulation map
   if (criteria == "min") {
-    accum <- setMinMax(accum)
+    accum <- terra::setMinMax(accum)
     id_cell_max <- which.max(accum)
-    max_cell <- xyFromCell(accum, id_cell_max)
+    max_cell <- terra::xyFromCell(accum, id_cell_max)
     max_cell_df <- data.frame(max_cell)
   } else if (criteria == "bary") {
-    quant <- quantile(accum, probs = 0.99)
+    quant <- terra::quantile(accum, probs = 0.99)
     id_cell_max <- which.max((accum) > quant)
-    max_cell <- xyFromCell(accum, id_cell_max)
+    max_cell <- terra::xyFromCell(accum, id_cell_max)
     # Weighted average flowaccumulation, rounded to the same as the search_step
     x_pond <- search_step * round((weighted.mean(max_cell[, 1], accum[id_cell_max])) / search_step)
     y_pond <- search_step * round((weighted.mean(max_cell[, 2], accum[id_cell_max])) / search_step)
@@ -162,8 +162,8 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 
   colnames(max_cell_df) <- c("x_offset", "y_offset")
   accum[id_cell_max]
-  accum <- setMinMax(accum)
-  id_cell_max_final <- minmax(accum)[2]
+  accum <- terra::setMinMax(accum)
+  id_cell_max_final <- terra::minmax(accum)[2]
   max_cell_df <- (cbind(max_cell_df, id_cell_max_final))
 
   return(max_cell_df)
