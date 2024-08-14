@@ -74,7 +74,7 @@ Use the following bash command to download and compress files, using curl and GN
 ```bash
 # Install required CLI tools :
 # sudo apt-get install curl parallel zip unzip
-cat 3664487056-Harmony.txt | parallel -j 8 "curl -Lnbj --silent {} | zip -q > {/}.zip && printf \"@ -\n@={/}\n\" | zipnote -w {/}.zip"
+cat 3664487056-Harmony.txt | parallel -j 8 "if [ ! -f {/}.zip ] ; then curl -Lnbj --silent {} | zip -q > {/}.zip && printf \"@ -\n@={/}\n\" | zipnote -w {/}.zip ; fi"
 ```
 
 The last part (printf and zipnote) is required in order to set the right filename within the zip file, since it is unknown ("-") because data is piped from stdin.  
@@ -84,14 +84,15 @@ The last part (printf and zipnote) is required in order to set the right filenam
 You may then pre-process a group of files and output will be stored in a single Rdata file. H5 files are searched recursively in the input folder.  
 The script takes 3 arguments :
 
-- input directory of HDF5 files (unzipped)
-- output Rdata file path
-- (TODO) optional input polygon for spatial subset
+- input directory of HDF5 files (zip will be extracted to `tempdir()`)
+- geoid undulation grid (raster format)
+- optional input polygon for spatial subset
 
 ```bash
-cd /my/ouput/dir
-./ExtractH5data.R <input H5 files directory> <output Rdata file> <shape-for-spatial-subset.gpkg>
+./ExtractH5data.R <directory of H5 files> <my geoid> <region of interest>
 ```
+
+Resulting RDS files are written in same directory as H5 files.
 
 ### GeoGEDIalgorithmParallel.R
 

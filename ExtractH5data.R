@@ -127,6 +127,7 @@ process_orbit <- function(h5_file, epsg_code) {
   return(gedi_df)
 }
 
+setwd(datadir)
 files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
 if (!dir.exists("trash")) {
   dir.create("trash")
