@@ -28,18 +28,11 @@ if (.Platform$OS.type == "windows") {
 #------------------------------------------
 
 arguments <- commandArgs(trailingOnly = TRUE)
-gedidata_path <- arguments[1]
-dem_smooth_path <- arguments[2]
+gedidata_path <- normalizePath(arguments[1])
+dem_smooth_path <- normalizePath(arguments[2])
 
 target_crs <- crs(rast(dem_smooth_path))
 quality_filter <- FALSE
-
-gedidata <- readRDS(gedidata_path)
-if (quality_filter) {
-  gedidata <- subset(gedidata, quality_flag == "01")
-  gedidata <- subset(gedidata, degrage_flag == "00")
-  gedidata <- subset(gedidata, power == "full")
-}
 
 #------------------------------------------
 # Algorithm parameters
@@ -66,21 +59,26 @@ approach <- "twobeams"
 #------------------------------------------
 # Outputs
 #------------------------------------------
+error_plots <- TRUE
 
-accum_dir <- "accum_rasters"
-plots_dir <- "error_maps"
+accum_dir <- "accum"
 results_dir <- "results"
 
 setwd(dirname(gedidata_path))
-for (d in c(accum_dir, plots_dir, results_dir)) {
+for (d in c(accum_dir, results_dir)) {
   if (!dir.exists(d)) {
     dir.create(d)
   }
 }
 
-error_plots <- TRUE
-
 ## Keep only essential data
+gedidata <- readRDS(gedidata_path)
+if (quality_filter) {
+  gedidata <- subset(gedidata, quality_flag == "01")
+  gedidata <- subset(gedidata, degrage_flag == "00")
+  gedidata <- subset(gedidata, power == "full")
+}
+
 gedidata <- gedidata %>%
   dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
 # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
@@ -112,7 +110,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   orb <- df_1$orbit[1]
 
   if (error_plots) {
-    basename <- paste0(plots_dir, sep, "mnt_", shot, "_", orb, "_", var)
+    basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", var)
     png(filename = paste0(basename, ".png"))
     plot(r, main = basename, asp = 1, xlim = c(-50, 50), lim = c(-50, 50))
     dev.off()
@@ -123,7 +121,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 
   accum_path <- paste0(accum_dir, sep, shot, "_accumulation.tif")
 
-  # apply flow accumulation FD8
+  # Apply flow accumulation FD8
   whitebox::wbt_fd8_flow_accumulation(
     path,
     output = accum_path,
@@ -132,13 +130,12 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
     threshold = NULL,
     log = FALSE,
     clip = FALSE,
-    wd = accum_dir,
-    verbose_mode = FALSE
+    verbose_mode = TRUE
   )
   accum <- rast(accum_path)
 
   if (error_plots) {
-    basename <- paste0(plots_dir, sep, "mnt_flow_", shot, "_", orb, "_", var)
+    basename <- paste0(accum_dir, sep, "mnt_flow_", shot, "_", orb, "_", var)
     png(filename = paste0(basename, ".png"))
     plot(accum, main = basename, asp = 1, xlim = c(-50, 50))
     dev.off()
@@ -207,7 +204,6 @@ process_orbit <- function(orb) {
   gedidata_ap <- allpoints
   rm(allpoints)
   gc()
-  print(gedidata_ap)
   # Get difference between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
   gedidata_ap$diff <- gedidata_ap$elev - gedidata_ap$elev_ngf
 

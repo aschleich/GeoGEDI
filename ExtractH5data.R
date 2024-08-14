@@ -12,9 +12,9 @@ library(rhdf5)
 
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
-datadir <- arguments[1]
-geoid_grid_file <- arguments[2]
-roi_file <- arguments[3]
+datadir <- normalizePath(arguments[1])
+geoid_grid_file <- normalizePath(arguments[2])
+roi_file <- normalizePath(arguments[3])
 
 quality_filter <- TRUE
 out_vector <- TRUE
@@ -47,6 +47,11 @@ if (.Platform$OS.type == "unix") {
   sep <- "/"
 } else {
   sep <- "\\"
+}
+
+setwd(datadir)
+if (!dir.exists("trash")) {
+  dir.create("trash")
 }
 
 process_beam <- function(h5_obj, beam_num) {
@@ -127,12 +132,6 @@ process_orbit <- function(h5_file, epsg_code) {
   return(gedi_df)
 }
 
-setwd(datadir)
-files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
-if (!dir.exists("trash")) {
-  dir.create("trash")
-}
-
 # First download IGN's grid of geoid undulation, converted from txt to GeoTIFF
 # See PROJ-data github repository: https://github.com/OSGeo/PROJ-data/tree/master/fr_ign
 if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
@@ -143,11 +142,13 @@ if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
   print("Could not guess CRS based on geoid filename.")
   epsg_code <- readline(prompt = "Enter your EPSG number:")
 }
-geoid_grid <- terra::rast(geoid_grid_file)
 
-# Main loop on all files (one h5 file per orbit)
+geoid_grid <- terra::rast(geoid_grid_file)
+files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
+
 final_df <- data.frame()
 
+# Main loop on all files (one h5 file per orbit)
 for (f in files) {
   is_tmp <- FALSE
   if (tools::file_ext(f) == "zip") {
@@ -185,8 +186,8 @@ for (f in files) {
 n_orbit <- final_df %>% summarise(Unique_Elements = n_distinct(orbit))
 print(paste("Exporting", n_orbit, "orbits..."))
 
-saveRDS(final_df, file = "gedi_data.rds")
+saveRDS(final_df, file = "GEDI_data.rds")
 if (out_vector) {
   gdf <- terra::vect(final_df, geom = c("x", "y"), crs = paste0("epsg:", epsg_code))
-  terra::writeVector(gdf, "gedi_data.gpkg", overwrite = TRUE)
+  terra::writeVector(gdf, "GEDI_data.gpkg", overwrite = TRUE)
 }
