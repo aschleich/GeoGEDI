@@ -120,6 +120,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   terra::writeRaster(r, path, overwrite = TRUE)
 
   accum_path <- paste0(accum_dir, sep, shot, "_accumulation.tif")
+  Sys.sleep(3)
 
   # Apply flow accumulation FD8
   whitebox::wbt_fd8_flow_accumulation(
@@ -128,6 +129,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
     out_type = "cells",
     exponent = 1.1,
     threshold = NULL,
+    wd = getwd(),
     log = FALSE,
     clip = FALSE,
     verbose_mode = TRUE
@@ -370,13 +372,14 @@ if (n_cores == 1) {
 } else {
   library(foreach, warn.conflicts = FALSE)
   library(doParallel)
+
   cl <- makeCluster(n_cores)
   registerDoParallel(cl)
 
-  results <- foreach(orb = orbits, .packages = c("plyr", "dplyr", "terra", "ModelMetrics")) %dopar% {
+  libs <- c("plyr", "dplyr", "terra", "ModelMetrics")
+  results <- foreach(orb = orbits, .packages = libs) %dopar% {
     process_orbit(orb)
   }
-
   stopCluster(cl)
 }
 
