@@ -1,11 +1,13 @@
 #!/usr/bin/env Rscript
+#################################################################
+# Mean smooth DTM in a 25m window
+#################################################################
 library(tools)
 library(stringr)
 suppressPackageStartupMessages(library(terra))
 terraOptions(progress = 0)
 
 smooth <- function(inpath, outpath) {
-  ######## Mean smooth DTM in a 25m window ##########
   dtm <- terra::rast(inpath)
   # Prepare output
   nodata <- -99999
