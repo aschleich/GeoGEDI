@@ -8,7 +8,5 @@ RUN useradd -u 1001 -s /bin/bash -m geogedi
 USER geogedi
 RUN R -q -e 'library(whitebox) ; install_whitebox()'
 
-WORKDIR /home/geogedi/scripts
-
-COPY *.R .
+COPY *.R /usr/local/bin/
 CMD ["/bin/bash"]
