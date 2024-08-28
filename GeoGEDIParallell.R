@@ -1,18 +1,17 @@
 #!/usr/bin/env Rscript
+library(sf)
+library(sp)
+library(raster)
+suppressPackageStartupMessages(library(terra, warn.conflicts = FALSE))
 library(plyr)
 library(dplyr, warn.conflicts = FALSE)
 library(stringr)
 library(tidyverse)
-library(sf)
-library(sp)
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
-suppressPackageStartupMessages(library(terra))
-library(terra, warn.conflicts = FALSE)
 library(whitebox)
 library(ModelMetrics, warn.conflicts = FALSE)
 
-# Force R to print more decimals
-options(digits = 12)
+options(digits = 12, error = traceback)
 
 if (.Platform$OS.type == "windows") {
   sep <- "\\"
@@ -135,7 +134,8 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
     compress_rasters = TRUE,
     verbose_mode = TRUE
   )
-  accum <- rast(accum_path)
+  # ! Use raster instead of terra because the quantile function doesn't work !
+  accum <- raster::raster(accum_path)
 
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_flow_", shot, "_", orb, "_", var)
@@ -146,14 +146,14 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 
   # Select final "optimal" pixel out of flow accumulation map
   if (criteria == "min") {
-    accum <- terra::setMinMax(accum)
-    id_cell_max <- which.max(accum)
-    max_cell <- terra::xyFromCell(accum, id_cell_max)
+    accum <- raster::setMinMax(accum)
+    id_cell_max <- raster::which.max(accum)
+    max_cell <- raster::xyFromCell(accum, id_cell_max)
     max_cell_df <- data.frame(max_cell)
   } else if (criteria == "bary") {
-    quant <- terra::quantile(accum, probs = 0.99)
-    id_cell_max <- which.max((accum) > quant)
-    max_cell <- terra::xyFromCell(accum, id_cell_max)
+    quant <- raster::quantile(accum, probs = 0.99)
+    id_cell_max <- raster::which.max((accum) > quant)
+    max_cell <- raster::xyFromCell(accum, id_cell_max)
     # Weighted average flowaccumulation, rounded to the same as the search_step
     x_pond <- search_step * round((weighted.mean(max_cell[, 1], accum[id_cell_max])) / search_step)
     y_pond <- search_step * round((weighted.mean(max_cell[, 2], accum[id_cell_max])) / search_step)
@@ -162,8 +162,8 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 
   colnames(max_cell_df) <- c("x_offset", "y_offset")
   accum[id_cell_max]
-  accum <- terra::setMinMax(accum)
-  id_cell_max_final <- terra::minmax(accum)[2]
+  accum <- raster::setMinMax(accum)
+  id_cell_max_final <- raster::maxValue(accum)
   max_cell_df <- (cbind(max_cell_df, id_cell_max_final))
 
   return(max_cell_df)
