@@ -49,7 +49,7 @@ if (.Platform$OS.type == "unix") {
   sep <- "\\"
 }
 
-setwd(datadir)
+#setwd(datadir)
 if (!dir.exists("trash")) {
   dir.create("trash")
 }
