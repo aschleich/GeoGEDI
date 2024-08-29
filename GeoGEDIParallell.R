@@ -373,11 +373,10 @@ if (n_cores == 1) {
   cluster <- makeCluster(n_cores)
   registerDoParallel(cluster)
   libs <- c("plyr", "dplyr", "terra", "ModelMetrics")
-  results <- foreach(group = gedidata, .packages = libs, .verbose = TRUE, .combine = rbind) %dopar% {
+  results <- foreach(group = gedidata, .packages = libs, .combine = rbind) %dopar% {
     process_orbit(group)
   }
   stopCluster(cluster)
-  results <- do.call(rbind, results)
 }
 
-saveRDS(results, "GeoGEDI_footprints.rds")
+saveRDS(results, "GeoGEDI_footprints_parallel.rds")
