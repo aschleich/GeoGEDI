@@ -25,7 +25,7 @@ quality_filter <- FALSE
 #------------------------------------------
 
 # For parallelization
-n_cores <- 1
+n_cores <- 5
 
 # Set Search window
 search_dist <- 50
@@ -150,19 +150,19 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   return(max_cell_df)
 }
 
-process_orbit <- function(orb) {
+process_orbit <- function(gedidata_ap) {
   ## Extract elevation values orbit by orbit
+  orb <- unique(gedidata_ap$orbit)
   #print(paste("Processing orbit", orb))
 
+  #---------------------------
+  # Extract elevation values
+  #---------------------------
   # First we extract the elevation value at the initial position of each footprint.
   # Only if this value is in the DTM, so only if the footprint overlays the DTM raster,
   # then we also extract the elevation values of the surrounding search window
   dem_smooth <- terra::rast(dem_smooth_path)
 
-  #---------------------------
-  # Extract elevation values
-  #---------------------------
-  gedidata_ap <- terra::subset(gedidata, orbit == orb)
 
   # Extraction at initial position with terra
   gedidata_geo <- terra::vect(gedidata_ap, geom = c("x", "y"), crs = target_crs)
@@ -355,11 +355,14 @@ process_orbit <- function(orb) {
   return(geogedi_data)
 }
 
-orbits <- base::unique(gedidata$orbit)
+# Group by orbit
+gedidata <- gedidata %>%
+  dplyr::group_by(orbit) %>%
+  dplyr::group_split()
 
 # Single core - simply lapply
 if (n_cores == 1) {
-  results <- do.call(rbind, lapply(orbits, process_orbit))
+  results <- do.call(rbind, lapply(gedidata, process_orbit))
 # Parallel execution
 } else {
   library(foreach)
@@ -370,8 +373,8 @@ if (n_cores == 1) {
   cluster <- makeCluster(n_cores)
   registerDoParallel(cluster)
   libs <- c("plyr", "dplyr", "terra", "ModelMetrics")
-  results <- foreach(orb = orbits, .packages = libs, .verbose = TRUE) %dopar% {
-    process_orbit(orb)
+  results <- foreach(group = gedidata, .packages = libs, .verbose = TRUE, .combine = rbind) %dopar% {
+    process_orbit(group)
   }
   stopCluster(cluster)
   results <- do.call(rbind, results)
