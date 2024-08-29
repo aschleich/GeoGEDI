@@ -16,6 +16,18 @@ datadir <- normalizePath(arguments[1])
 geoid_grid_file <- normalizePath(arguments[2])
 roi_file <- normalizePath(arguments[3])
 
+# First download IGN's grid of geoid undulation, converted from txt to GeoTIFF
+# See PROJ-data github repository: https://github.com/OSGeo/PROJ-data/tree/master/fr_ign
+if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
+  epsg_code <- "5698"
+} else if (startsWith(basename(geoid_grid_file), "fr_ign_RAC")) {
+  epsg_code <- "5699"
+} else {
+  print("Could not guess CRS based on geoid filename.")
+  epsg_code <- readline(prompt = "Enter your EPSG number:")
+}
+target_crs <- paste0("epsg:", epsg_code)
+
 quality_filter <- TRUE
 out_vector <- TRUE
 variables <- c(
@@ -49,7 +61,7 @@ if (.Platform$OS.type == "unix") {
   sep <- "\\"
 }
 
-#setwd(datadir)
+# setwd(datadir)
 if (!dir.exists("trash")) {
   dir.create("trash")
 }
@@ -83,11 +95,40 @@ process_beam <- function(h5_obj, beam_num) {
   return(beam_df)
 }
 
-process_orbit <- function(h5_file, epsg_code) {
-  h5_obj <- rhdf5::H5Fopen(h5_file)
-  fun <- partial(process_beam, h5_obj)
-  gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, fun)))
-  h5closeAll()
+process_orbit <- function(h5_file) {
+  # Support for zipped H5 files
+  is_tmp <- FALSE
+  if (tools::file_ext(h5_file) == "zip") {
+    tmp <- tempdir()
+    unzip(h5_file, exdir = tmp)
+    h5_file <- paste0(tmp, sep, file_path_sans_ext(basename(h5_file)))
+    is_tmp <- TRUE
+  }
+
+  print(paste0("Processing ", h5_file))
+
+  tryCatch(
+    {
+      h5_obj <- rhdf5::H5Fopen(h5_file)
+      fun <- partial(process_beam, h5_obj)
+      gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, fun)))
+      h5closeAll()
+    },
+    # When H5 file is corrupted
+    error = function(e) {
+      if (grepl("HDF5. Object header. Can't open object.", e)) {
+        # TODO: check error message
+        print(paste0("Invalid H5 file: ", h5_file))
+        if (!is_tmp) {
+          print("Moving to 'trash' folder")
+          file.copy(h5_file, paste0("trash", sep, basename(h5_file)))
+          file.remove(h5_file)
+        }
+      } else {
+        print(e)
+      }
+    }
+  )
 
   gedi_df$orbit <- substr(gedi_df$shot_number, 1, 4)
   geom_cols <- c("lon_lowestmode", "lat_lowestmode")
@@ -95,8 +136,8 @@ process_orbit <- function(h5_file, epsg_code) {
   # Convert dataframe to SpatVector
   gedi_df <- terra::vect(gedi_df, geom = geom_cols, crs = "epsg:4326")
   # Filter points in polygons if an ROI file was provided
-  if (! is.na(roi_file)) {
-    gedi_df <- terra::intersect(gedi_df, terra::vect(roi_file))
+  if (!is.na(roi_file)) {
+    gedi_df <- terra::mask(gedi_df, terra::vect(roi_file))
   }
 
   # Transform height to altitude using geoid undulation grid
@@ -110,84 +151,42 @@ process_orbit <- function(h5_file, epsg_code) {
   # Save lon/lat and x/y coords
   gedi_df$lon <- terra::geom(gedi_df)[, 3]
   gedi_df$lat <- terra::geom(gedi_df)[, 4]
-  gedi_df <- terra::project(gedi_df, paste0("epsg:", epsg_code))
+  gedi_df <- terra::project(gedi_df, target_crs)
   gedi_df$x <- terra::geom(gedi_df)[, 3]
   gedi_df$y <- terra::geom(gedi_df)[, 4]
 
-  # Back to dataframe
-  gedi_df <- as.data.frame(gedi_df)
+  # Back to data.frame
+  gedi_df <- terra::values(gedi_df)
 
   # Keep only quality data
   n_samples <- dim(gedi_df)[1]
   if (quality_filter) {
-    gedi_df <- subset(gedi_df, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
+    gedi_df <- terra::subset(gedi_df, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
   }
 
   if (dim(gedi_df)[1] == 0) {
     print("Couldn't find any good quality samples within ROI")
   } else {
     print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
-  } # end loop rbind data to final dataframe
+  }
+  # Clean tmp data in case of unzip
+  if (is_tmp) {
+    file.remove(h5_file)
+  }
 
   return(gedi_df)
-}
-
-# First download IGN's grid of geoid undulation, converted from txt to GeoTIFF
-# See PROJ-data github repository: https://github.com/OSGeo/PROJ-data/tree/master/fr_ign
-if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
-  epsg_code <- "5698"
-} else if (startsWith(basename(geoid_grid_file), "fr_ign_RAC")) {
-  epsg_code <- "5699"
-} else {
-  print("Could not guess CRS based on geoid filename.")
-  epsg_code <- readline(prompt = "Enter your EPSG number:")
 }
 
 geoid_grid <- terra::rast(geoid_grid_file)
 files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
 
-final_df <- data.frame()
+results <- do.call(rbind, lapply(files, process_orbit))
 
-# Main loop on all files (one h5 file per orbit)
-for (f in files) {
-  is_tmp <- FALSE
-  if (tools::file_ext(f) == "zip") {
-    tmp <- tempdir()
-    unzip(f, exdir = tmp)
-    f <- paste0(tmp, sep, file_path_sans_ext(basename(f)))
-    is_tmp <- TRUE
-  }
-  print(paste0("Processing ", f))
-
-  tryCatch(
-    {
-      final_df <- rbind(final_df, process_orbit(f, epsg_code))
-    },
-    # When H5 file is corrupted
-    error = function(e) {
-      if (grepl("HDF5. Object header. Can't open object.", e)) {
-        # TODO: check error message
-        print(paste0("Invalid H5 file: ", f))
-        if (!is_tmp) {
-          print("Moving to 'trash' folder")
-          file.copy(f, paste0("trash", sep, basename(f)))
-          file.remove(f)
-        }
-      } else {
-        print(e)
-      }
-    }
-  )
-  if (is_tmp) {
-    file.remove(f)
-  }
-}
-
-n_orbit <- final_df %>% summarise(Unique_Elements = n_distinct(orbit))
+n_orbit <- results %>% summarise(Unique_Elements = n_distinct(orbit))
 print(paste("Exporting", n_orbit, "orbits..."))
 
-saveRDS(final_df, file = "GEDI_data.rds")
+saveRDS(results, file = "GEDI_data.rds")
 if (out_vector) {
-  gdf <- terra::vect(final_df, geom = c("x", "y"), crs = paste0("epsg:", epsg_code))
-  terra::writeVector(gdf, "GEDI_data.gpkg", overwrite = TRUE)
+  results <- terra::vect(results, geom = c("x", "y"), crs = target_crs)
+  terra::writeVector(results, "GEDI_data.gpkg", overwrite = TRUE)
 }
