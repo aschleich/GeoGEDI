@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
 library(dplyr, warn.conflicts = FALSE)
+use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FALSE))
 
 options(digits = 12, error = traceback)
 
@@ -15,10 +16,7 @@ if (.Platform$OS.type == "windows") {
 
 arguments <- commandArgs(trailingOnly = TRUE)
 gedidata_path <- normalizePath(arguments[1])
-gedidata_path <- "/home/vidlb/Projets/umr_tetis/geogedi/test/GEDI_data.rds"
 dem_smooth_path <- normalizePath(arguments[2])
-dem_smooth_path <- "/home/vidlb/Projets/umr_tetis/geogedi/MNT/corse.vrt"
-
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
 quality_filter <- FALSE
 
@@ -60,7 +58,12 @@ for (d in c(accum_dir, results_dir)) {
   }
 }
 
-gedidata <- terra::readRDS(gedidata_path)
+if (tools::file_ext(gedidata_path) == "parquet") {
+  gedidata <- arrow::read_parquet(gedidata_path)
+} else {
+  gedidata <- readRDS(gedidata_path)
+}
+
 ## Keep only essential data
 gedidata <- gedidata %>%
   dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
@@ -239,10 +242,10 @@ process_orbit <- function(gedidata_ap) {
   rm(gedidata_geo)
   # drop = TRUE -> back to data.frame
   gedidata_ap <- terra::subset(gedidata_ap, !is.na(gedidata_ap$elev00), drop = TRUE)
+
   # Stop here if the footprints does not intersect with DTM
-  if (dim(gedidata_ap)[1] == 0) {
-    return(NULL)
-  }
+  if (dim(gedidata_ap)[1] == 0) return(NULL)
+
   # Else the search window is defined
   gedidata_ap <- base::merge(gedidata_ap, search_df, by = NULL)
 
@@ -374,4 +377,8 @@ if (n_cores == 1) {
   stopCluster(cluster)
 }
 
-saveRDS(results, "GeoGEDI_footprints.rds")
+if (use_arrow) {
+  arrow::write_parquet(results, "GeoGEDI_footprints.parquet")
+} else {
+  saveRDS(results, "GeoGEDI_footprints.rds")
+}

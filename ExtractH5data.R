@@ -1,9 +1,11 @@
 #!/usr/bin/env Rscript
 #################################################################
-# Convert HDF5 GEDI data to RDS file + shift z values using geoid
+# Convert HDF5 GEDI data to RDS or parquet file + shift z values using geoid
 #################################################################
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
 library(dplyr, warn.conflicts = FALSE)
+
+use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FALSE))
 
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
@@ -179,7 +181,12 @@ results <- do.call(rbind, lapply(files, process_orbit))
 n_orbit <- results %>% summarise(Unique_Elements = n_distinct(orbit))
 print(paste("Exporting", n_orbit, "orbits..."))
 
-saveRDS(results, file = "GEDI_data.rds")
+if (use_arrow) {
+  arrow::write_parquet(results, "GEDI_data.parquet")
+} else {
+  saveRDS(results, file = "GEDI_data.rds")
+}
+
 if (out_vector) {
   results <- terra::vect(results, geom = c("x", "y"), crs = target_crs)
   terra::writeVector(results, "GEDI_data.gpkg", overwrite = TRUE)
