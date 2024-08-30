@@ -2,13 +2,8 @@
 #################################################################
 # Convert HDF5 GEDI data to RDS file + shift z values using geoid
 #################################################################
-
-library(tools)
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
-suppressPackageStartupMessages(library(terra))
 library(dplyr, warn.conflicts = FALSE)
-library(purrr, warn.conflicts = FALSE)
-library(rhdf5)
 
 # Script arguments
 arguments <- commandArgs(trailingOnly = TRUE)
@@ -66,10 +61,10 @@ if (!dir.exists("trash")) {
   dir.create("trash")
 }
 
-process_beam <- function(h5_obj, beam_num) {
+process_beam <- function(beam_num, h5_obj) {
   half_beam_names <- c("BEAM0011", "BEAM0010", "BEAM0001", "BEAM0000")
   # Read datasets headers only
-  stru2 <- h5dump(h5_obj, recursive = 2, all = FALSE, load = FALSE)
+  stru2 <- rhdf5::h5dump(h5_obj, recursive = 2, all = FALSE, load = FALSE)
   beam_name <- names(stru2)[beam_num]
 
   get_dataset <- function(ds_path) {
@@ -101,7 +96,7 @@ process_orbit <- function(h5_file) {
   if (tools::file_ext(h5_file) == "zip") {
     tmp <- tempdir()
     unzip(h5_file, exdir = tmp)
-    h5_file <- paste0(tmp, sep, file_path_sans_ext(basename(h5_file)))
+    h5_file <- paste0(tmp, sep, tools::file_path_sans_ext(basename(h5_file)))
     is_tmp <- TRUE
   }
 
@@ -110,9 +105,8 @@ process_orbit <- function(h5_file) {
   tryCatch(
     {
       h5_obj <- rhdf5::H5Fopen(h5_file)
-      fun <- partial(process_beam, h5_obj)
-      gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, fun)))
-      h5closeAll()
+      gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, process_beam, h5_obj)))
+      rhdf5::h5closeAll()
     },
     # When H5 file is corrupted
     error = function(e) {
