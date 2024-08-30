@@ -344,7 +344,7 @@ process_orbit <- function(gedidata_ap) {
   # Save the final file
   # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
-  col_names <- c("shot_ftp", "x_offset", "y_offset", "id_cell_max_final", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
+  col_names <- c("shot_ftp", "x_offset", "y_offset", "max_value", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
   by_x <- c("shot_number", "x_offset", "y_offset")
   by_y <- c("shot_ftp", "x_offset", "y_offset")
   geogedi_data <- terra::merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
