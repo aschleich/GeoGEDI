@@ -81,15 +81,16 @@ gedidata <- gedidata %>%
 
 ## Create search window
 search_seq <- seq(-search_dist, search_dist, search_step)
-search_df <- terra::merge(search_seq, search_seq, by = NULL)
+search_df <- merge(search_seq, search_seq, by = NULL)
 colnames(search_df) <- c("x_offset", "y_offset")
 
-nb_extracted <- base::nrow(search_df)
+nb_extracted <- nrow(search_df)
 
 #------------------------------------------
 # Flow accumulation algorithm function
 #------------------------------------------
 flowaccum <- function(df, accum_dir, criteria, var, shot) {
+  orb <- df$orbit[1]
   # Create Error Map
   sp::coordinates(df) <- ~ x_offset + y_offset
   df_err <- df[, c(var)]
@@ -97,7 +98,6 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   error_map <- terra::rast(df_err)
   terra::crs(error_map) <- target_crs
 
-  orb <- df$orbit[1]
 
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", var)
@@ -151,9 +151,9 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   }
 
   accum <- terra::setMinMax(accum)
-  max_value <- terra::minmax(accum)[2]
-  max_cell_df <- cbind(max_cell_df, max_value)
-  colnames(max_cell_df) <- c("x_offset", "y_offset", "max_value")
+  max_accum <- terra::minmax(accum)[2]
+  max_cell_df <- cbind(max_cell_df, max_accum)
+  colnames(max_cell_df) <- c("x_offset", "y_offset", "max_accum")
 
   return(max_cell_df)
 }
@@ -376,8 +376,8 @@ if (n_cores == 1) {
   registerDoParallel(cluster)
   libs <- c("plyr", "dplyr", "terra", "ModelMetrics")
   # To print exported variables (duplicated in memory), use argument ".verbose = TRUE"
-  results <- foreach(group = gedidata, .packages = libs, .combine = rbind) %dopar% {
-    process_orbit(group)
+  results <- foreach(orb = gedidata, .packages = libs, .combine = rbind) %dopar% {
+    process_orbit(orb)
   }
   stopCluster(cluster)
 }
