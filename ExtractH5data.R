@@ -103,11 +103,12 @@ process_orbit <- function(h5_file) {
   }
 
   print(paste0("Processing ", h5_file))
+  gedi_df <- NULL
 
   tryCatch(
     {
       h5_obj <- rhdf5::H5Fopen(h5_file)
-      gedi_df <- as.data.frame(do.call(rbind, lapply(1:8, process_beam, h5_obj)))
+      gedi_df <- do.call(rbind, lapply(1:8, process_beam, h5_obj))
       rhdf5::h5closeAll()
     },
     # When H5 file is corrupted
@@ -125,6 +126,7 @@ process_orbit <- function(h5_file) {
       }
     }
   )
+  if (is.null(gedi_df)) return(NULL)
 
   gedi_df$orbit <- substr(gedi_df$shot_number, 1, 4)
   geom_cols <- c("lon_lowestmode", "lat_lowestmode")
@@ -179,15 +181,20 @@ files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
 results <- do.call(rbind, lapply(files, process_orbit))
 
 n_orbit <- results %>% summarise(Unique_Elements = n_distinct(orbit))
-print(paste("Exporting", n_orbit, "orbits..."))
 
-if (use_arrow) {
-  arrow::write_parquet(results, "GEDI_data.parquet")
+if (n_orbit > 0) {
+  print(paste("Exporting", n_orbit, "orbits..."))
+
+  if (use_arrow) {
+    arrow::write_parquet(results, "GEDI_data.parquet")
+  } else {
+    saveRDS(results, file = "GEDI_data.rds")
+  }
+
+  if (out_vector) {
+    results <- terra::vect(results, geom = c("x", "y"), crs = target_crs)
+    terra::writeVector(results, "GEDI_data.gpkg", overwrite = TRUE)
+  }
 } else {
-  saveRDS(results, file = "GEDI_data.rds")
-}
-
-if (out_vector) {
-  results <- terra::vect(results, geom = c("x", "y"), crs = target_crs)
-  terra::writeVector(results, "GEDI_data.gpkg", overwrite = TRUE)
+  print("Empty result, no orbit matching criteria.")
 }

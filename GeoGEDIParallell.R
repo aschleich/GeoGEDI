@@ -65,14 +65,19 @@ if (tools::file_ext(gedidata_path) == "parquet") {
   gedidata <- readRDS(gedidata_path)
 }
 
+if (quality_filter) {
+  gedidata <- subset(gedidata, quality_flag == "01" & degrage_flag == "00" & power == "full")
+}
+
+if (nrow(gedidata) == 0) {
+  print("No remaining data after quality filter.")
+  quit()
+}
+
 ## Keep only essential data
 gedidata <- gedidata %>%
   dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
 # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
-
-if (quality_filter) {
-  gedidata <- terra::subset(gedidata, quality_flag == "01" & degrage_flag == "00" & power == "full")
-}
 
 ## Create search window
 search_seq <- seq(-search_dist, search_dist, search_step)
