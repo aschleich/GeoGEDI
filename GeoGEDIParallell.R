@@ -389,5 +389,5 @@ if (n_cores == 1) {
 if (use_arrow) {
   arrow::write_parquet(results, "GeoGEDI_footprints.parquet")
 } else {
-  saveRDS(results, "GeoGEDI_footprints.rds")
+  saveRDS(results, "GeoGEDI_footprints_dtplyr.rds")
 }
