@@ -17,6 +17,7 @@ if (.Platform$OS.type == "windows") {
 arguments <- commandArgs(trailingOnly = TRUE)
 gedidata_path <- normalizePath(arguments[1])
 dem_smooth_path <- normalizePath(arguments[2])
+
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
 quality_filter <- FALSE
 
@@ -119,7 +120,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
     verbose_mode = TRUE
   )
   # ! Use raster instead of terra because the quantile function doesn't work !
-  accum <- raster::raster(accum_path)
+  accum <- terra::rast(accum_path)
 
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_flow_", shot, "_", orb, "_", var)
@@ -130,25 +131,24 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 
   # Select final "optimal" pixel out of flow accumulation map
   if (criteria == "min") {
-    accum <- raster::setMinMax(accum)
-    id_cell_max <- raster::which.max(accum)
-    max_cell <- raster::xyFromCell(accum, id_cell_max)
-    max_cell_df <- data.frame(max_cell)
+    accum <- terra::setMinMax(accum)
+    cell <- base::which.max(terra::values(accum))
+    cell_xy <- terra::xyFromCell(accum, cell)
+    max_cell_df <- data.frame(cell_xy)
   } else if (criteria == "bary") {
-    quant <- raster::quantile(accum, probs = 0.99)
-    id_cell_max <- raster::which.max((accum) > quant)
-    max_cell <- raster::xyFromCell(accum, id_cell_max)
+    quant <- terra::quantile(terra::values(accum), probs = 0.99)
+    cell <- base::which.max(terra::values(accum > quant))
+    cell_xy <- terra::xyFromCell(accum, cell)
     # Weighted average flowaccumulation, rounded to the same as the search_step
-    x_pond <- search_step * round((weighted.mean(max_cell[, 1], accum[id_cell_max])) / search_step)
-    y_pond <- search_step * round((weighted.mean(max_cell[, 2], accum[id_cell_max])) / search_step)
+    x_pond <- search_step * round((stats::weighted.mean(cell_xy[, 1], accum[cell])) / search_step)
+    y_pond <- search_step * round((stats::weighted.mean(cell_xy[, 2], accum[cell])) / search_step)
     max_cell_df <- data.frame(x_pond, y_pond)
   }
 
-  colnames(max_cell_df) <- c("x_offset", "y_offset")
-  accum[id_cell_max]
-  accum <- raster::setMinMax(accum)
-  id_cell_max_final <- raster::maxValue(accum)
-  max_cell_df <- (cbind(max_cell_df, id_cell_max_final))
+  accum <- terra::setMinMax(accum)
+  max_value <- terra::minmax(accum)[2]
+  max_cell_df <- cbind(max_cell_df, max_value)
+  colnames(max_cell_df) <- c("x_offset", "y_offset", "max_value")
 
   return(max_cell_df)
 }
