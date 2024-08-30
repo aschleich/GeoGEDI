@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+library(data.table)
+library(dtplyr)
 library(dplyr, warn.conflicts = FALSE)
 use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FALSE))
 
@@ -167,6 +169,9 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
     time_ftpmin <- time_ftp - step_half
     time_ftpmax <- time_ftp + step_half
 
+    # Init dtplyr
+    gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
+
     # Define cluster : select neighboring footprints for calculation depending on approach
     if (approach == "singlebeam") {
       gedidata_tilespec <- gedidata_tile %>%
@@ -202,10 +207,12 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
         AbsErr = mean(abs(diff)),
         Corr = cor(elev, elev_ngf),
         RMSE = ModelMetrics::rmse(elev, elev_ngf)
-      )
+      ) %>%
+      tibble::as_tibble()
 
     # If at least X footprints in the search window
-    if (df_tilespec$footprint_nb[1] >= 1) { # ex.: 1 is executed for all footprints, may be changed to higher value (ex. 30) to not execute code for footprints with few neighbours.
+    # Use 1 to execute on all footprints, may be changed to higher value (ex. 30) to not execute code for footprints with few neighbours.
+    if (df_tilespec$footprint_nb[1] >= 1) {
 
       # Run flow accumulation algorithm to find best shift
       # Define bary or min criteria to select final optimal position
@@ -245,14 +252,14 @@ process_orbit <- function(gedidata_ap) {
   gedidata_geo <- terra::vect(gedidata_ap, geom = c("x", "y"), crs = target_crs)
   gedidata_ap$elev00 <- unlist(terra::extract(dem_smooth, gedidata_geo)[2])
   rm(gedidata_geo)
-  # drop = TRUE -> back to data.frame
+  # drop = TRUE -> from SpatVector back to data.frame
   gedidata_ap <- terra::subset(gedidata_ap, !is.na(gedidata_ap$elev00), drop = TRUE)
 
   # Stop here if the footprints does not intersect with DTM
   if (dim(gedidata_ap)[1] == 0) return(NULL)
 
   # Else the search window is defined
-  gedidata_ap <- base::merge(gedidata_ap, search_df, by = NULL)
+  gedidata_ap <- merge(gedidata_ap, search_df, by = NULL)
 
   gedidata_ap$x_shifted <- gedidata_ap$x + gedidata_ap$x_offset
   gedidata_ap$y_shifted <- gedidata_ap$y + gedidata_ap$y_offset
@@ -262,31 +269,25 @@ process_orbit <- function(gedidata_ap) {
   gedidata_ap$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
   rm(shifted_points)
 
-  # Only keep footprint if a value could be extracted for all positions of the search window
-  gedidata_summary <- gedidata_ap %>%
-    dplyr::group_by(shot_number) %>%
-    dplyr::filter(!any(is.na(elev))) %>%
-    dplyr::summarise(count = n())
-  gedidata_summary <- base::subset(gedidata_summary, count == nb_extracted)
-  gedidata_ap <- gedidata_ap[gedidata_ap$shot_number %in% gedidata_summary$shot_number, ]
-
-  # saveRDS(gedidata_ap, file = paste0(results_dir, sep, orb, ".rds"))
-
-  # Join gedi data and DEMref gedidata_ap
-  # gedidata_ap <- dplyr::left_join(gedidata_ap, gedidata, by=c("shot_number"))
   # Get difference between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
   gedidata_ap$diff <- gedidata_ap$elev - gedidata_ap$elev_ngf
+
+  gedidata_ap <- dtplyr::lazy_dt(gedidata_ap)
 
   # Delete if diff > 100
   gedidata_ap <- gedidata_ap %>% dplyr::filter(abs(diff) <= 100)
 
+  # Only keep footprint if a value could be extracted for all positions of the search window
   gedidata_summary <- gedidata_ap %>%
     dplyr::group_by(shot_number) %>%
     dplyr::filter(!any(is.na(elev))) %>%
-    dplyr::summarise(count = n())
-  gedidata_summary <- base::subset(gedidata_summary, count == nb_extracted)
-  gedidata_ap <- gedidata_ap[gedidata_ap$shot_number %in% gedidata_summary$shot_number, ]
-  rm(gedidata_summary)
+    dplyr::summarise(count = n()) %>%
+    tibble::as_tibble()
+  gedidata_summary <- subset(gedidata_summary, count == nb_extracted)
+  gedidata_ap <- gedidata_ap %>%
+    dplyr::filter(shot_number %in% gedidata_summary$shot_number)
+
+  # saveRDS(gedidata_ap, file = paste0(results_dir, sep, orb, ".rds"))
 
   # General mean stat by orbit (with initial position (x_offset = 0 and y_offset = 0)
   # df_0 <- gedidata_ap %>%
@@ -315,26 +316,29 @@ process_orbit <- function(gedidata_ap) {
       AbsErr = mean(abs(diff)),
       Corr = cor(elev, elev_ngf),
       RMSE = ModelMetrics::rmse(elev, elev_ngf)
-    )
+    ) %>%
+    tibble::as_tibble()
 
   #------------------------------------------
   # Preparation of Flow accumulation execution
   #------------------------------------------
+  # Prepare a smaller dataset with only needed variables
+  gedidata_tile <- gedidata_ap %>%
+    dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff) %>%
+    as.data.frame()
+
+  gedidata_ap <- tibble::as_tibble(gedidata_ap)
 
   # Get general optimal position for all footprints combined
   df_accum <- df_accum %>%
     dplyr::group_by(orbit) %>%
     dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb))
 
-  optim_accum <- base::merge(gedidata_ap, df_accum[, c("orbit", "x_offset", "y_offset")], by = c("orbit", "x_offset", "y_offset"))
-
-  # Keep only needed variables
-  gedidata_tile <- gedidata_ap %>%
-    dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
+  optim_accum <- merge(gedidata_ap, df_accum[, c("orbit", "x_offset", "y_offset")], by = c("orbit", "x_offset", "y_offset"))
 
   # Order the dataframes
-  gedidata_tile <- gedidata_tile[base::order(gedidata_tile$delta_time), , drop = FALSE]
-  optim_accum <- optim_accum[base::order(optim_accum$delta_time), , drop = FALSE]
+  gedidata_tile <- gedidata_tile[order(gedidata_tile$delta_time), , drop = FALSE]
+  optim_accum <- optim_accum[order(optim_accum$delta_time), , drop = FALSE]
 
   # Count number of footprints
   nb_ftp <- gedidata_tile %>%
@@ -349,10 +353,10 @@ process_orbit <- function(gedidata_ap) {
   # Save the final file
   # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
-  col_names <- c("shot_ftp", "x_offset", "y_offset", "max_value", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
+  col_names <- c("shot_ftp", "x_offset", "y_offset", "max_accum", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
   by_x <- c("shot_number", "x_offset", "y_offset")
   by_y <- c("shot_ftp", "x_offset", "y_offset")
-  geogedi_data <- terra::merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
+  geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
 
   return(geogedi_data)
 }
