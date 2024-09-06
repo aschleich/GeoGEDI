@@ -1,4 +1,5 @@
 #!/usr/bin/env Rscript
+suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
 library(data.table)
 library(dtplyr)
 library(dplyr, warn.conflicts = FALSE)
@@ -40,11 +41,11 @@ step_half <- 0.215
 
 # Set the approach to be used
 # singlebeam uses only neighboring footprints of the same beam
-approach <- "singlebeam"
+# approach <- "singlebeam"
 # allbeams uses the neighboring footprints of all beams of the dataset
 # approach <- "allbeams"
 # twobeams uses the neighboring footprints of same laser unit beams of the dataset
-# approach <- "twobeams"
+approach <- "twobeams"
 
 #------------------------------------------
 # Outputs
@@ -192,6 +193,16 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
         gedidata_tilespec <- gedidata_tile %>%
           dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
           dplyr::filter(beam_name == "BEAM1000" | beam_name == "BEAM1011")
+      }
+      if (beam_nameftp == "BEAM0000" || beam_nameftp == "BEAM0001") {
+        gedidata_tilespec <- gedidata_tile %>%
+          dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+          dplyr::filter(beam_name == "BEAM0000" | beam_name == "BEAM0001")
+      }
+      if (beam_nameftp == "BEAM0010" || beam_nameftp == "BEAM0011") {
+        gedidata_tilespec <- gedidata_tile %>%
+          dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+          dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
       }
     }
 
