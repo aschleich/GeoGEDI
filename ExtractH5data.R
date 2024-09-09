@@ -26,7 +26,7 @@ if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
 target_crs <- paste0("epsg:", epsg_code)
 
 quality_filter <- TRUE
-out_vector <- TRUE
+out_vector <- FALSE
 variables <- c(
   "/shot_number",
   "/lat_lowestmode",
@@ -161,40 +161,30 @@ process_orbit <- function(h5_file) {
   if (quality_filter) {
     gedi_df <- terra::subset(gedi_df, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
   }
-
-  if (dim(gedi_df)[1] == 0) {
-    print("Couldn't find any good quality samples within ROI")
-  } else {
-    print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
-  }
   # Clean tmp data in case of unzip
   if (is_tmp) {
     file.remove(h5_file)
   }
 
-  return(gedi_df)
+  orbit <- unique(gedi_df$orbit)[1]
+  if (dim(gedi_df)[1] == 0) {
+    print("Couldn't find any good quality samples within ROI")
+  } else {
+    print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
+
+    if (use_arrow) {
+      arrow::write_parquet(gedi_df, paste0(orbit,".parquet"))
+    } else {
+      saveRDS(gedi_df, file = paste0(orbit,".rds"))
+    }
+    if (out_vector) {
+      gedi_df <- terra::vect(gedi_df, geom = c("x", "y"), crs = target_crs)
+      terra::writeVector(gedi_df, paste0(orbit, ".gpkg"), overwrite = TRUE)
+    }
+  }
 }
 
 geoid_grid <- terra::rast(geoid_grid_file)
 files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
 
-results <- do.call(rbind, lapply(files, process_orbit))
-
-n_orbit <- results %>% summarise(Unique_Elements = n_distinct(orbit))
-
-if (n_orbit > 0) {
-  print(paste("Exporting", n_orbit, "orbits..."))
-
-  if (use_arrow) {
-    arrow::write_parquet(results, "GEDI_data.parquet")
-  } else {
-    saveRDS(results, file = "GEDI_data.rds")
-  }
-
-  if (out_vector) {
-    results <- terra::vect(results, geom = c("x", "y"), crs = target_crs)
-    terra::writeVector(results, "GEDI_data.gpkg", overwrite = TRUE)
-  }
-} else {
-  print("Empty result, no orbit matching criteria.")
-}
+apply(files, process_orbit)
