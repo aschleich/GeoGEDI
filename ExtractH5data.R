@@ -187,4 +187,4 @@ process_orbit <- function(h5_file) {
 geoid_grid <- terra::rast(geoid_grid_file)
 files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
 
-apply(files, process_orbit)
+for (orb in files) { process_orbit(orb) }

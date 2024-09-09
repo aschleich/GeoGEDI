@@ -1,6 +1,6 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
-library(data.table)
+library(data.table, warn.conflicts = FALSE)
 library(dtplyr)
 library(dplyr, warn.conflicts = FALSE)
 use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FALSE))
@@ -369,7 +369,11 @@ process_orbit <- function(gedidata_ap) {
   by_y <- c("shot_ftp", "x_offset", "y_offset")
   geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
 
-  return(geogedi_data)
+  if (use_arrow) {
+    arrow::write_parquet(geogedi_data, paste0(orb,"_shifted.parquet"))
+  } else {
+    saveRDS(geogedi_data, paste0(orb,"_shifted.rds"))
+  }
 }
 
 # Group by orbit
@@ -379,7 +383,7 @@ gedidata <- gedidata %>%
 
 # Single core - simply lapply
 if (n_cores == 1) {
-  results <- do.call(rbind, lapply(gedidata, process_orbit))
+  for (orb in gedidata) { process_orbit(orb) }
 # Parallel execution
 } else {
   library(foreach)
@@ -389,16 +393,10 @@ if (n_cores == 1) {
 
   cluster <- makeCluster(n_cores)
   registerDoParallel(cluster)
-  libs <- c("plyr", "dplyr", "terra", "ModelMetrics")
+  libs <- c("data.table", "dtplyr", "plyr", "dplyr", "terra", "ModelMetrics")
   # To print exported variables (duplicated in memory), use argument ".verbose = TRUE"
-  results <- foreach(orb = gedidata, .packages = libs, .combine = rbind) %dopar% {
+  foreach(orb = gedidata, .packages = libs, .combine = rbind) %dopar% {
     process_orbit(orb)
   }
   stopCluster(cluster)
-}
-
-if (use_arrow) {
-  arrow::write_parquet(results, "GeoGEDI_footprints.parquet")
-} else {
-  saveRDS(results, "GeoGEDI_footprints_dtplyr.rds")
 }
