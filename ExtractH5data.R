@@ -173,7 +173,7 @@ process_orbit <- function(h5_file) {
     print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
 
     if (use_arrow) {
-      arrow::write_parquet(gedi_df, paste0(orbit,".parquet"))
+      arrow::write_parquet(gedi_df, paste0("O", orbit, ".parquet"))
     } else {
       saveRDS(gedi_df, file = paste0("O", orbit, ".rds"))
     }
