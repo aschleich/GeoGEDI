@@ -166,16 +166,15 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
     time_ftp <- optim_accum[footprint_idx, ]$delta_time
     beam_nameftp <- optim_accum[footprint_idx, ]$beam_name
 
-    # Set time to select neighboring footprints for cluster
-    time_ftpmin <- time_ftp - step_half
-    time_ftpmax <- time_ftp + step_half
-
     # Init dtplyr
     gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
 
-    # Select footprints based on time
+    # Set time to select neighboring footprints for cluster
+    time_ftpmin <- time_ftp - step_half
+    time_ftpmax <- time_ftp + step_half
     gedidata_tilespec <- gedidata_tile %>%
       dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax)
+  
     # Define cluster : select neighboring footprints depending on approach
     if (approach == "singlebeam") {
       gedidata_tilespec <- gedidata_tilespec %>%
