@@ -74,7 +74,7 @@ if (quality_filter) {
 
 if (nrow(gedidata) == 0) {
   print("No remaining data after quality filter.")
-  quit()
+  quit("no", 1)
 }
 
 ## Keep only essential data
@@ -173,37 +173,33 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
     # Init dtplyr
     gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
 
-    # Define cluster : select neighboring footprints for calculation depending on approach
+    # Select footprints based on time
+    gedidata_tilespec <- gedidata_tile %>%
+      dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax)
+    # Define cluster : select neighboring footprints depending on approach
     if (approach == "singlebeam") {
-      gedidata_tilespec <- gedidata_tile %>%
-        dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+      gedidata_tilespec <- gedidata_tilespec %>%
         dplyr::filter(beam_name == beam_nameftp)
-    }
-    if (approach == "allbeams") {
-      gedidata_tilespec <- gedidata_tile %>%
-        dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax)
-    }
-    if (approach == "twobeams") {
+    } else if (approach == "twobeams") {
       if (beam_nameftp == "BEAM0101" || beam_nameftp == "BEAM0110") {
-        gedidata_tilespec <- gedidata_tile %>%
-          dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+        gedidata_tilespec <- gedidata_tilespec %>%
           dplyr::filter(beam_name == "BEAM0101" | beam_name == "BEAM0110")
       }
       if (beam_nameftp == "BEAM1000" || beam_nameftp == "BEAM1011") {
-        gedidata_tilespec <- gedidata_tile %>%
-          dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+        gedidata_tilespec <- gedidata_tilespec %>%
           dplyr::filter(beam_name == "BEAM1000" | beam_name == "BEAM1011")
       }
       if (beam_nameftp == "BEAM0000" || beam_nameftp == "BEAM0001") {
-        gedidata_tilespec <- gedidata_tile %>%
-          dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+        gedidata_tilespec <- gedidata_tilespec %>%
           dplyr::filter(beam_name == "BEAM0000" | beam_name == "BEAM0001")
       }
       if (beam_nameftp == "BEAM0010" || beam_nameftp == "BEAM0011") {
-        gedidata_tilespec <- gedidata_tile %>%
-          dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax) %>%
+        gedidata_tilespec <- gedidata_tilespec %>%
           dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
       }
+    } else if (approach != "allbeams") {
+      print("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
+      quit("no", 1)
     }
 
     # Calculate statistics for each position in search window
