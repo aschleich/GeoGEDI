@@ -128,7 +128,7 @@ process_orbit <- function(h5_file) {
   )
   if (is.null(gedi_df)) return(NULL)
 
-  gedi_df$orbit <- substr(gedi_df$shot_number, 1, 4)
+  gedi_df$orbit <- substr(gedi_df$shot_number, 1, 5)
   geom_cols <- c("lon_lowestmode", "lat_lowestmode")
 
   # Convert dataframe to SpatVector
@@ -175,11 +175,11 @@ process_orbit <- function(h5_file) {
     if (use_arrow) {
       arrow::write_parquet(gedi_df, paste0(orbit,".parquet"))
     } else {
-      saveRDS(gedi_df, file = paste0(orbit,".rds"))
+      saveRDS(gedi_df, file = paste0("O", orbit, ".rds"))
     }
     if (out_vector) {
       gedi_df <- terra::vect(gedi_df, geom = c("x", "y"), crs = target_crs)
-      terra::writeVector(gedi_df, paste0(orbit, ".gpkg"), overwrite = TRUE)
+      terra::writeVector(gedi_df, paste0("O", orbit, ".gpkg"), overwrite = TRUE)
     }
   }
 }

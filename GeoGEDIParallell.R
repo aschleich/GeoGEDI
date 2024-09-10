@@ -370,9 +370,9 @@ process_orbit <- function(gedidata_ap) {
   geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
 
   if (use_arrow) {
-    arrow::write_parquet(geogedi_data, paste0(orb,"_shifted.parquet"))
+    arrow::write_parquet(geogedi_data, paste0("O", orb, "_shifted.parquet"))
   } else {
-    saveRDS(geogedi_data, paste0(orb,"_shifted.rds"))
+    saveRDS(geogedi_data, paste0("O", orb, "_shifted.rds"))
   }
 }
 
