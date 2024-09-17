@@ -366,10 +366,9 @@ process_orbit <- function(gedidata_path) {
     dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb)) %>%
     dplyr::select(orbit, x_offset, y_offset)
 
-  optim_accum <- dplyr::left_join(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
-  gedidata_ap <- tibble::as_tibble(gedidata_ap)
-
+  optim_accum <- merge(gedidata_ap, df_accum[, c("orbit", "x_offset", "y_offset")], by = c("orbit", "x_offset", "y_offset"))
   rm(df_accum)
+
   # Order the dataframes
   gedidata_tile <- gedidata_tile %>%
     dplyr::arrange(delta_time) %>%
@@ -392,7 +391,7 @@ process_orbit <- function(gedidata_path) {
 
   # Save the final file
   # saveRDS(gedidata_shifted, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
-
+  gedidata_ap <- tibble::as_tibble(gedidata_ap)
   gedidata_shifted <- dplyr::select(gedidata_shifted, orbit, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
   geogedi_data <- dplyr::inner_join(gedidata_ap, gedidata_shifted, by = c("orbit", "shot_number", "x_offset", "y_offset"))
   rm(gedidata_ap, gedidata_shifted)
