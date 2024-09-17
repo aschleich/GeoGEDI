@@ -393,10 +393,10 @@ process_orbit <- function(gedidata_path) {
   # Save the final file
   # saveRDS(gedidata_shifted, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
-  gedidata_shifted <- dplyr::select(gedidata_shifted, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
-  geogedi_data <- dplyr::inner_join(gedidata_ap, gedidata_shifted, by = c("shot_number", "x_offset", "y_offset"))
+  gedidata_shifted <- dplyr::select(gedidata_shifted, orbit, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
+  geogedi_data <- dplyr::inner_join(gedidata_ap, gedidata_shifted, by = c("orbit", "shot_number", "x_offset", "y_offset"))
   rm(gedidata_ap, gedidata_shifted)
-  geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full, by = c("shot_number", "x", "y", "orbit", "delta_time", "beam_name", "elev_ngf"))
+  geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full, by = c("orbit", "shot_number", "x", "y", "delta_time", "beam_name", "elev_ngf"))
   rm(gedidata_full)
 
   if (use_arrow) {
