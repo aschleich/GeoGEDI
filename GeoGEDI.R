@@ -85,7 +85,7 @@ colnames(search_df) <- c("x_offset", "y_offset")
 nb_extracted <- nrow(search_df)
 
 if (use_arrow) {
-  keep_f64 <- c("delta_time", "lat", "lon", "landsat_treecover", "modis_treecover", "modis_treecover_sd", "modis_nonvegetated", "modis_nonvegetated_sd")
+  keep_f64 <- c("delta_time", "lat", "lon")
   # Convert f64 columns to f32 before writing table
   make_arrow_table <- function(dataframe) {
     float64_cols <- sapply(dataframe, is.double)
