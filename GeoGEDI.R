@@ -407,10 +407,9 @@ if (use_arrow) {
 }
 gedi_files <- paste0(gedidata_dir, sep, dir(gedidata_dir, pattern = pattern))
 
-
 # Single core - simply lapply
 if (n_cores == 1) {
-  for (orb in gedi_files.sorted) {
+  for (orb in sort(gedi_files)) {
     process_orbit(orb)
   }
   # Parallel execution
