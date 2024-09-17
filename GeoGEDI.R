@@ -296,7 +296,7 @@ process_orbit <- function(gedidata_path) {
   gedidata_ap$y_shifted <- gedidata_ap$y + gedidata_ap$y_offset
 
   # Extraction at all positions defined in search window settings
-  shifted_points <- terra::vect(dplyr::filter(gedidata_ap, x_shifted, y_shifted), geom = c("x_shifted", "y_shifted"), crs = target_crs)
+  shifted_points <- terra::vect(dplyr::select(gedidata_ap, x_shifted, y_shifted), geom = c("x_shifted", "y_shifted"), crs = target_crs)
   gedidata_ap$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
   rm(shifted_points, dem_smooth)
 
