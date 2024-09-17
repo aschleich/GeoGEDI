@@ -355,18 +355,19 @@ process_orbit <- function(gedidata_path) {
   #------------------------------------------
   # Preparation of Flow accumulation execution
   #------------------------------------------
+  # Prepare a smaller dataset with only needed variables
+  gedidata_tile <- gedidata_ap %>%
+    dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
 
   # Get general optimal position for all footprints combined
   df_accum <- df_accum %>%
     dplyr::group_by(orbit) %>%
-    dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb))
+    dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb)) %>%
+    dplyr::select(orbit, x_offset, y_offset)
 
   optim_accum <- dplyr::left_join(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
+  gedidata_ap <- tibble:as_tibble(gedidata_ap)
   rm(df_accum)
-
-  # Prepare a smaller dataset with only needed variables
-  gedidata_tile <- gedidata_ap %>%
-    dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
   # Order the dataframes
   gedidata_tile <- gedidata_tile %>%
     dplyr::arrange(delta_time) %>%
