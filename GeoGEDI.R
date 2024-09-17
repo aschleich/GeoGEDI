@@ -275,7 +275,7 @@ process_orbit <- function(gedidata_path) {
   dem_smooth <- terra::rast(dem_smooth_path)
 
   # Extraction at initial position with terra
-  gedidata_geo <- terra::vect(gedidata_ap, geom = c("x", "y"), crs = target_crs)
+  gedidata_geo <- terra::vect(subset(gedidata_ap, select = c("x", "y")), geom = c("x", "y"), crs = target_crs)
   gedidata_ap$elev00 <- unlist(terra::extract(dem_smooth, gedidata_geo)[2])
   rm(gedidata_geo)
   # drop = TRUE -> from SpatVector back to data.frame
@@ -293,7 +293,8 @@ process_orbit <- function(gedidata_path) {
   gedidata_ap$y_shifted <- gedidata_ap$y + gedidata_ap$y_offset
 
   # Extraction at all positions defined in search window settings
-  shifted_points <- terra::vect(gedidata_ap, geom = c("x_shifted", "y_shifted"), crs = target_crs)
+  geom_cols <- c("x_shifted", "y_shifted")
+  shifted_points <- terra::vect(subset(gedidata_ap, select = geom_cols), geom = geom_cols, crs = target_crs)
   gedidata_ap$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
   rm(shifted_points)
 
