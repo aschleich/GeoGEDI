@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
 library(data.table, warn.conflicts = FALSE)
+library(tidyr)
 library(dtplyr)
 library(dplyr, warn.conflicts = FALSE)
 use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FALSE))
@@ -90,17 +91,17 @@ if (use_arrow) {
 #------------------------------------------
 # Flow accumulation algorithm function
 #------------------------------------------
-flowaccum <- function(df, accum_dir, criteria, var, shot) {
+flowaccum <- function(df, accum_dir, criteria, variable, shot) {
   orb <- df$orbit[1]
   # Create Error Map
   sp::coordinates(df) <- ~ x_offset + y_offset
-  df_err <- df[, c(var)]
+  df_err <- df[, c(variable)]
   sp::gridded(df_err) <- TRUE
   errormap <- terra::rast(df_err)
   terra::crs(errormap) <- target_crs
 
   if (error_plots) {
-    basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", var)
+    basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", variable)
     png(filename = paste0(basename, ".png"))
     terra::plot(errormap, main = basename, asp = 1, xlim = c(-50, 50), ylim = c(-50, 50))
     dev.off()
@@ -128,7 +129,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   accum <- terra::rast(accum_path)
 
   if (error_plots) {
-    basename <- paste0(accum_dir, sep, "mnt_flow_", shot, "_", orb, "_", var)
+    basename <- paste0(accum_dir, sep, "mnt_flow_", shot, "_", orb, "_", variable)
     grDevices::png(filename = paste0(basename, ".png"))
     terra::plot(accum, main = basename, asp = 1, xlim = c(-50, 50))
     grDevices::dev.off()
@@ -160,7 +161,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 }
 
 process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
-  shot_ftp <- optim_accum[footprint_idx, ]$shot_number
+  shot_number <- optim_accum[footprint_idx, ]$shot_number
   time_ftp <- optim_accum[footprint_idx, ]$delta_time
   beam_nameftp <- optim_accum[footprint_idx, ]$beam_name
 
@@ -226,11 +227,11 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
     # Define variable ex.: AbsErr to create error map on
     df_accum_bary <- df_tilespec %>%
       dplyr::group_by(orbit) %>%
-      dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = shot_ftp))
+      dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = shot_number))
 
     # Join
-    df_accum_tilespec_bary <- plyr::join(df_accum_bary, df_tilespec, type = "inner", by = c("orbit", "x_offset", "y_offset"))
-    df_accum_tilespec_bary$shot_ftp <- shot_ftp
+    df_accum_tilespec_bary <- dplyr::inner_join(df_accum_bary, df_tilespec, by = c("orbit", "x_offset", "y_offset"))
+    df_accum_tilespec_bary$shot_number <- shot_number
     df_accum_tilespec_bary$time_ftp <- time_ftp
 
     # Save a backup every 1000 footprints
@@ -250,8 +251,10 @@ process_orbit <- function(gedidata_path) {
   }
 
   if (quality_filter) {
-    gedidata_full <- subset(gedidata_full, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
-    gedidata_full <- subset(gedidata_full, select = -c(surface_flag, degrade_flag, quality_flag))
+    gedidata_full <- gedidata_full %>%
+      dplyr::filter(surface_flag == "01", degrade_flag == "00", quality_flag == "01")
+    gedidata_full <- gedidata_full %>%
+      dplyr::select(surface_flag, degrade_flag, quality_flag)
     if (nrow(gedidata_full) == 0) {
       print("No remaining data after quality filter.")
       return(NULL)
@@ -275,11 +278,11 @@ process_orbit <- function(gedidata_path) {
   dem_smooth <- terra::rast(dem_smooth_path)
 
   # Extraction at initial position with terra
-  gedidata_geo <- terra::vect(subset(gedidata_ap, select = c("x", "y")), geom = c("x", "y"), crs = target_crs)
+  gedidata_geo <- terra::vect(dplyr::filter(gedidata_ap, x, y), geom = c("x", "y"), crs = target_crs)
   gedidata_ap$elev00 <- unlist(terra::extract(dem_smooth, gedidata_geo)[2])
   rm(gedidata_geo)
-  # drop = TRUE -> from SpatVector back to data.frame
-  gedidata_ap <- terra::subset(gedidata_ap, !is.na(gedidata_ap$elev00), drop = TRUE)
+
+  gedidata_ap <- dplyr::filter(gedidata_ap, !is.na(elev00))
 
   # Stop here if the footprints does not intersect with DTM
   if (dim(gedidata_ap)[1] == 0) {
@@ -287,14 +290,13 @@ process_orbit <- function(gedidata_path) {
   }
 
   # Else the search window is defined
-  gedidata_ap <- merge(gedidata_ap, search_df, by = NULL)
+  gedidata_ap <- tidyr::crossing(gedidata_ap, search_df)
 
   gedidata_ap$x_shifted <- gedidata_ap$x + gedidata_ap$x_offset
   gedidata_ap$y_shifted <- gedidata_ap$y + gedidata_ap$y_offset
 
   # Extraction at all positions defined in search window settings
-  geom_cols <- c("x_shifted", "y_shifted")
-  shifted_points <- terra::vect(subset(gedidata_ap, select = geom_cols), geom = geom_cols, crs = target_crs)
+  shifted_points <- terra::vect(dplyr::filter(gedidata_ap, x_shifted, y_shifted), geom = c("x_shifted", "y_shifted"), crs = target_crs)
   gedidata_ap$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
   rm(shifted_points, dem_smooth)
 
@@ -312,8 +314,8 @@ process_orbit <- function(gedidata_path) {
     dplyr::group_by(shot_number) %>%
     dplyr::filter(!any(is.na(elev))) %>%
     dplyr::summarise(count = n()) %>%
+    dplyr::filter(count == nb_extracted) %>%
     tibble::as_tibble()
-  gedidata_summary <- subset(gedidata_summary, count == nb_extracted)
   gedidata_ap <- gedidata_ap %>%
     dplyr::filter(shot_number %in% gedidata_summary$shot_number)
 
@@ -353,24 +355,25 @@ process_orbit <- function(gedidata_path) {
   #------------------------------------------
   # Preparation of Flow accumulation execution
   #------------------------------------------
-  # Prepare a smaller dataset with only needed variables
-  gedidata_tile <- gedidata_ap %>%
-    dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff) %>%
-    as.data.frame()
-
-  gedidata_ap <- tibble::as_tibble(gedidata_ap)
 
   # Get general optimal position for all footprints combined
   df_accum <- df_accum %>%
     dplyr::group_by(orbit) %>%
     dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb))
 
-  optim_accum <- merge(gedidata_ap, df_accum[, c("orbit", "x_offset", "y_offset")], by = c("orbit", "x_offset", "y_offset"))
+  optim_accum <- dplyr::left_join(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
   rm(df_accum)
 
+  # Prepare a smaller dataset with only needed variables
+  gedidata_tile <- gedidata_ap %>%
+    dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
   # Order the dataframes
-  gedidata_tile <- gedidata_tile[order(gedidata_tile$delta_time), , drop = FALSE]
-  optim_accum <- optim_accum[order(optim_accum$delta_time), , drop = FALSE]
+  gedidata_tile <- gedidata_tile %>%
+    dplyr::arrange(delta_time) %>%
+    tibble::as_tibble()
+  optim_accum <- optim_accum %>%
+    dplyr::arrange(delta_time) %>%
+    tibble::as_tibble()
 
   # Count number of footprints
   nb_ftp <- gedidata_tile %>%
@@ -386,8 +389,8 @@ process_orbit <- function(gedidata_path) {
   # Save the final file
   # saveRDS(gedidata_shifted, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
-  col_names <- c("shot_ftp", "x_offset", "y_offset", "max_accum", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
-  geogedi_data <- merge(gedidata_ap, gedidata_shifted[col_names], by.x = c("shot_number", "x_offset", "y_offset"), by.y = c("shot_ftp", "x_offset", "y_offset"))
+  gedidata_shifted <- dplyr::select(gedidata_shifted, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
+  geogedi_data <- dplyr::inner_join(gedidata_ap, gedidata_shifted, by = c("shot_number", "x_offset", "y_offset"))
   rm(gedidata_ap, gedidata_shifted)
   geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full, by = c("shot_number", "x", "y", "orbit", "delta_time", "beam_name", "elev_ngf"))
   rm(gedidata_full)
@@ -420,7 +423,7 @@ if (n_cores == 1) {
 
   cluster <- makeCluster(n_cores)
   registerDoParallel(cluster)
-  libs <- c("data.table", "dtplyr", "plyr", "dplyr", "terra", "ModelMetrics")
+  libs <- c("data.table", "tidyr", "dtplyr", "plyr", "dplyr", "terra", "ModelMetrics")
   # To print exported variables (duplicated in memory), use argument ".verbose = TRUE"
   foreach(orb = gedi_files, .packages = libs) %dopar% {
     process_orbit(orb)
