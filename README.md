@@ -11,7 +11,7 @@ A. Schleich, S. Durrieu, M. Soma and C. Vega, "Improving GEDI Footprint Geolocat
 You may use any OS with R 4.* and geospatial libraries installed (terra). A Linux OS is recommended.  
 To do it using Docker, you can build an image using `docker build -t geogedi .`.
 
-Default user in container will be geogedi (uid=1001). You can modify the "useradd" command in Dockerfile to match your user uid and gid.  
+Default user in container will be geogedi (uid=1001). You can modify the "useradd" command in Dockerfile to match your user uid and gid, but uid 1000 isn't available in the rocker base image.  
 
 ## Scripts
 
@@ -94,7 +94,7 @@ The script takes 3 arguments :
 
 Resulting RDS files are written in same directory as H5 files.
 
-### GeoGEDIalgorithmParallel.R
+### GeoGEDI.R
 
 Run GeoGEDI algorithm, parallelized by orbit.  
 
@@ -103,6 +103,6 @@ Run GeoGEDI algorithm, parallelized by orbit.
 - Smoothed Digital Terrain Model
 - GEDI variables saved as Rdata: shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
 
-### GeoGEDIalgorithm.R
+### legacy/*.R
 
-Legacy script (to be removed).
+Legacy scripts (as written by Anouk during her thesis).
