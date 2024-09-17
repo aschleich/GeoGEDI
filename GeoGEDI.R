@@ -421,7 +421,7 @@ if (n_cores == 1) {
   registerDoParallel(cluster)
   libs <- c("data.table", "dtplyr", "plyr", "dplyr", "terra", "ModelMetrics")
   # To print exported variables (duplicated in memory), use argument ".verbose = TRUE"
-  foreach(orb = gedi_files, .packages = libs, .combine = rbind) %dopar% {
+  foreach(orb = gedi_files, .packages = libs) %dopar% {
     process_orbit(orb)
   }
   stopCluster(cluster)
