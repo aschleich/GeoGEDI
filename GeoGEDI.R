@@ -96,19 +96,19 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   sp::coordinates(df) <- ~ x_offset + y_offset
   df_err <- df[, c(var)]
   sp::gridded(df_err) <- TRUE
-  error_map <- terra::rast(df_err)
-  terra::crs(error_map) <- target_crs
+  errormap <- terra::rast(df_err)
+  terra::crs(errormap) <- target_crs
 
 
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", var)
     png(filename = paste0(basename, ".png"))
-    terra::plot(error_map, main = basename, asp = 1, xlim = c(-50, 50), ylim = c(-50, 50))
+    terra::plot(errormap, main = basename, asp = 1, xlim = c(-50, 50), ylim = c(-50, 50))
     dev.off()
   }
 
-  errormap_path <- paste0(accum_dir, sep, shot, "_error_map.tif")
-  terra::writeRaster(error_map, errormap_path, overwrite = TRUE)
+  errormap_path <- paste0(accum_dir, sep, shot, "_errormap.tif")
+  terra::writeRaster(errormap, errormap_path, overwrite = TRUE)
 
   accum_path <- paste0(accum_dir, sep, shot, "_accumulation.tif")
 
@@ -156,6 +156,7 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   max_cell_df <- cbind(max_cell_df, max_accum)
   colnames(max_cell_df) <- c("x_offset", "y_offset", "max_accum")
 
+  unlink(c(errormap_path, accum_path))
   return(max_cell_df)
 }
 
