@@ -95,8 +95,6 @@ if (use_arrow) {
     schema_list <- lapply(names(dataframe), function(col_name) {
       if (float64_cols[[col_name]] && !col_name %in% c("delta_time", "lat", "lon")) {
         arrow::field(col_name, arrow::float32())
-      } else if (int_cols[[col_name]]) {
-        arrow::field(col_name, int32())
       } else {
         arrow::field(col_name, arrow::infer_type(dataframe[[col_name]]))
       }
