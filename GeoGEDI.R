@@ -99,7 +99,6 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
   errormap <- terra::rast(df_err)
   terra::crs(errormap) <- target_crs
 
-
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", var)
     png(filename = paste0(basename, ".png"))
@@ -297,7 +296,7 @@ process_orbit <- function(gedidata_path) {
   geom_cols <- c("x_shifted", "y_shifted")
   shifted_points <- terra::vect(subset(gedidata_ap, select = geom_cols), geom = geom_cols, crs = target_crs)
   gedidata_ap$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
-  rm(shifted_points)
+  rm(shifted_points, dem_smooth)
 
   # Get difference between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
   # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
