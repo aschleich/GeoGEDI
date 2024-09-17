@@ -164,7 +164,6 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
   shot_number <- optim_accum[footprint_idx, ]$shot_number
   time_ftp <- optim_accum[footprint_idx, ]$delta_time
   beam_nameftp <- optim_accum[footprint_idx, ]$beam_name
-
   # Init dtplyr
   gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
 
@@ -250,6 +249,8 @@ process_orbit <- function(gedidata_path) {
     gedidata_full <- readRDS(gedidata_path)
   }
 
+  gedidata_full <- tibble::as_tibble(gedidata_full)
+  
   if (quality_filter) {
     gedidata_full <- gedidata_full %>%
       dplyr::filter(surface_flag == "01", degrade_flag == "00", quality_flag == "01")
@@ -288,9 +289,9 @@ process_orbit <- function(gedidata_path) {
   if (dim(gedidata_ap)[1] == 0) {
     return(NULL)
   }
-
+  
   # Else the search window is defined
-  gedidata_ap <- tidyr::crossing(gedidata_ap, search_df)
+  gedidata_ap <- dplyr::cross_join(gedidata_ap, search_df)
 
   gedidata_ap$x_shifted <- gedidata_ap$x + gedidata_ap$x_offset
   gedidata_ap$y_shifted <- gedidata_ap$y + gedidata_ap$y_offset
@@ -366,7 +367,7 @@ process_orbit <- function(gedidata_path) {
     dplyr::select(orbit, x_offset, y_offset)
 
   optim_accum <- dplyr::left_join(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
-  gedidata_ap <- tibble:as_tibble(gedidata_ap)
+  gedidata_ap <- tibble::as_tibble(gedidata_ap)
 
   rm(df_accum)
   # Order the dataframes
