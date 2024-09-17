@@ -278,7 +278,7 @@ process_orbit <- function(gedidata_path) {
   dem_smooth <- terra::rast(dem_smooth_path)
 
   # Extraction at initial position with terra
-  gedidata_geo <- terra::vect(dplyr::filter(gedidata_ap, x, y), geom = c("x", "y"), crs = target_crs)
+  gedidata_geo <- terra::vect(dplyr::select(gedidata_ap, x, y), geom = c("x", "y"), crs = target_crs)
   gedidata_ap$elev00 <- unlist(terra::extract(dem_smooth, gedidata_geo)[2])
   rm(gedidata_geo)
 
