@@ -18,7 +18,7 @@ if (.Platform$OS.type == "windows") {
 #------------------------------------------
 
 arguments <- commandArgs(trailingOnly = TRUE)
-gedidata_path <- normalizePath(arguments[1])
+gedidata_dir <- normalizePath(arguments[1])
 dem_smooth_path <- normalizePath(arguments[2])
 
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
@@ -57,27 +57,11 @@ error_plots <- FALSE
 accum_dir <- "accum"
 results_dir <- "results"
 
-# setwd(dirname(gedidata_path))
+# setwd(dirname(gedidata_dir))
 for (d in c(accum_dir, results_dir)) {
   if (!dir.exists(d)) {
     dir.create(d)
   }
-}
-
-if (tools::file_ext(gedidata_path) == "parquet") {
-  gedidata <- arrow::read_parquet(gedidata_path)
-} else {
-  gedidata <- readRDS(gedidata_path)
-}
-
-if (quality_filter) {
-  gedidata <- subset(gedidata, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
-  gedidata <- subset(gedidata, select = -c(surface_flag, degrade_flag, quality_flag))
-}
-
-if (nrow(gedidata) == 0) {
-  print("No remaining data after quality filter.")
-  quit("no", 1)
 }
 
 ## Create search window
@@ -258,7 +242,22 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
   }
 }
 
-process_orbit <- function(gedidata_full) {
+process_orbit <- function(gedidata_path) {
+  if (tools::file_ext(gedidata_path) == "parquet") {
+    gedidata_full <- arrow::read_parquet(gedidata_path)
+  } else {
+    gedidata_full <- readRDS(gedidata_path)
+  }
+
+  if (quality_filter) {
+    gedidata_full <- subset(gedidata_full, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
+    gedidata_full <- subset(gedidata_full, select = -c(surface_flag, degrade_flag, quality_flag))
+    if (nrow(gedidata_full) == 0) {
+      print("No remaining data after quality filter.")
+      return(NULL)
+    }
+  }
+
   ## Keep only essential data
   gedidata_ap <- gedidata_full %>%
     dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
@@ -317,6 +316,7 @@ process_orbit <- function(gedidata_full) {
   gedidata_ap <- gedidata_ap %>%
     dplyr::filter(shot_number %in% gedidata_summary$shot_number)
 
+  rm(gedidata_summary)
   # saveRDS(gedidata_ap, file = paste0(results_dir, sep, orb, ".rds"))
 
   # General mean stat by orbit (with initial position (x_offset = 0 and y_offset = 0)
@@ -365,6 +365,7 @@ process_orbit <- function(gedidata_full) {
     dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb))
 
   optim_accum <- merge(gedidata_ap, df_accum[, c("orbit", "x_offset", "y_offset")], by = c("orbit", "x_offset", "y_offset"))
+  rm(df_accum)
 
   # Order the dataframes
   gedidata_tile <- gedidata_tile[order(gedidata_tile$delta_time), , drop = FALSE]
@@ -378,14 +379,17 @@ process_orbit <- function(gedidata_full) {
   #------------------------------------------
   # Flow accumulation algorithm applied to each footprint
   #------------------------------------------
-  ftp_shift_bary <- do.call(rbind, lapply(1:nb_ftp, process_footprint, gedidata_tile, optim_accum))
+  gedidata_shifted <- do.call(rbind, lapply(1:nb_ftp, process_footprint, gedidata_tile, optim_accum))
+  rm(gedidata_tile, optim_accum)
 
   # Save the final file
-  # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
+  # saveRDS(gedidata_shifted, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
   col_names <- c("shot_ftp", "x_offset", "y_offset", "max_accum", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
-  geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = c("shot_number", "x_offset", "y_offset"), by.y = c("shot_ftp", "x_offset", "y_offset"))
+  geogedi_data <- merge(gedidata_ap, gedidata_shifted[col_names], by.x = c("shot_number", "x_offset", "y_offset"), by.y = c("shot_ftp", "x_offset", "y_offset"))
+  rm(gedidata_ap, gedidata_shifted)
   geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full, by = c("shot_number", "x", "y", "orbit", "delta_time", "beam_name", "elev_ngf"))
+  rm(gedidata_full)
 
   if (use_arrow) {
     arrow::write_parquet(make_arrow_table(geogedi_data), paste0("O", orb, "_shifted.parquet"))
@@ -394,14 +398,16 @@ process_orbit <- function(gedidata_full) {
   }
 }
 
-# Group by orbit
-gedidata <- gedidata %>%
-  dplyr::group_by(orbit) %>%
-  dplyr::group_split()
+if (use_arrow) {
+  pattern <- "*.parquet"
+} else {
+  pattern <- "*.rds"
+}
+gedi_files <- paste0(gedidata_dir, sep, dir(gedidata_dir, pattern = pattern))
 
 # Single core - simply lapply
 if (n_cores == 1) {
-  for (orb in gedidata) {
+  for (orb in gedi_files) {
     process_orbit(orb)
   }
   # Parallel execution
@@ -415,7 +421,7 @@ if (n_cores == 1) {
   registerDoParallel(cluster)
   libs <- c("data.table", "dtplyr", "plyr", "dplyr", "terra", "ModelMetrics")
   # To print exported variables (duplicated in memory), use argument ".verbose = TRUE"
-  foreach(orb = gedidata, .packages = libs, .combine = rbind) %dopar% {
+  foreach(orb = gedi_files, .packages = libs, .combine = rbind) %dopar% {
     process_orbit(orb)
   }
   stopCluster(cluster)
