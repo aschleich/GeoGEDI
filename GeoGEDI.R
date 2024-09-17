@@ -84,6 +84,22 @@ colnames(search_df) <- c("x_offset", "y_offset")
 
 nb_extracted <- nrow(search_df)
 
+if (use_arrow) {
+  keep_f64 <- c("delta_time", "lat", "lon", "landsat_treecover", "modis_treecover", "modis_treecover_sd", "modis_nonvegetated", "modis_nonvegetated_sd")
+  # Convert f64 columns to f32 before writing table
+  make_arrow_table <- function(dataframe) {
+    float64_cols <- sapply(dataframe, is.double)
+    schema_list <- lapply(names(dataframe), function(col_name) {
+      if (float64_cols[[col_name]] && ! col_name %in% keep_f64 ) {
+        arrow::field(col_name, arrow::float32())
+      } else {
+        arrow::field(col_name, arrow::infer_type(dataframe[[col_name]]))
+      }
+    })
+    return(Table$create(dataframe, schema = arrow::schema(schema_list)))
+  }
+}
+
 #------------------------------------------
 # Flow accumulation algorithm function
 #------------------------------------------
@@ -370,7 +386,7 @@ process_orbit <- function(gedidata_full) {
   geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full)
 
   if (use_arrow) {
-    arrow::write_parquet(geogedi_data, paste0("O", orb, "_shifted.parquet"))
+    arrow::write_parquet(make_arrow_table(geogedi_data), paste0("O", orb, "_shifted.parquet"))
   } else {
     saveRDS(geogedi_data, paste0("O", orb, "_shifted.rds"))
   }
