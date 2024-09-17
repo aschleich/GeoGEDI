@@ -85,12 +85,11 @@ colnames(search_df) <- c("x_offset", "y_offset")
 nb_extracted <- nrow(search_df)
 
 if (use_arrow) {
-  keep_f64 <- c("delta_time", "lat", "lon")
-  # Convert f64 columns to f32 before writing table
+  # Convert f64 columns to f32 in order to save disk space
   make_arrow_table <- function(dataframe) {
     float64_cols <- sapply(dataframe, is.double)
     schema_list <- lapply(names(dataframe), function(col_name) {
-      if (float64_cols[[col_name]] && ! col_name %in% keep_f64 ) {
+      if (float64_cols[[col_name]] && ! col_name %in% c("delta_time", "lat", "lon") ) {
         arrow::field(col_name, arrow::float32())
       } else {
         arrow::field(col_name, arrow::infer_type(dataframe[[col_name]]))
