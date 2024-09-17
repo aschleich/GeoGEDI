@@ -126,7 +126,9 @@ process_orbit <- function(h5_file) {
       }
     }
   )
-  if (is.null(gedi_df)) return(NULL)
+  if (is.null(gedi_df)) {
+    return(NULL)
+  }
 
   gedi_df$orbit <- substr(gedi_df$shot_number, 1, 5)
   geom_cols <- c("lon_lowestmode", "lat_lowestmode")
@@ -188,4 +190,6 @@ process_orbit <- function(h5_file) {
 geoid_grid <- terra::rast(geoid_grid_file)
 files <- paste0(datadir, sep, dir(datadir, pattern = "*.h5", recursive = TRUE))
 
-for (orb in files) { process_orbit(orb) }
+for (orb in files) {
+  process_orbit(orb)
+}
