@@ -77,11 +77,6 @@ if (nrow(gedidata) == 0) {
   quit("no", 1)
 }
 
-## Keep only essential data
-gedidata <- gedidata %>%
-  dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
-# elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
-
 ## Create search window
 search_seq <- seq(-search_dist, search_dist, search_step)
 search_df <- merge(search_seq, search_seq, by = NULL)
@@ -196,8 +191,8 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
         gedidata_tilespec <- gedidata_tilespec %>%
           dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
       }
-      if ( length(unique(gedidata_tilespec$beam_name))) == 1 ) {
-        print("Only one beam name left after filtering, cannot use the 'twobeams' approach")
+      if ( length(unique(gedidata_tilespec$beam_name)) == 1 ) {
+        print("Only one beam name left after filtering, cannot use the 'twobeams' approach.")
         return(NULL)
       }
     } else if (approach != "allbeams") {
@@ -245,7 +240,11 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
     }
 }
 
-process_orbit <- function(gedidata_ap) {
+process_orbit <- function(gedidata_full) {
+  ## Keep only essential data
+  gedidata_ap <- gedidata_full %>%
+    dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
+
   ## Extract elevation values orbit by orbit
   orb <- unique(gedidata_ap$orbit)
   #print(paste("Processing orbit", orb))
@@ -280,6 +279,7 @@ process_orbit <- function(gedidata_ap) {
   rm(shifted_points)
 
   # Get difference between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
+  # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
   gedidata_ap$diff <- gedidata_ap$elev - gedidata_ap$elev_ngf
 
   gedidata_ap <- dtplyr::lazy_dt(gedidata_ap)
@@ -367,6 +367,7 @@ process_orbit <- function(gedidata_ap) {
   by_x <- c("shot_number", "x_offset", "y_offset")
   by_y <- c("shot_ftp", "x_offset", "y_offset")
   geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
+  geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full)
 
   if (use_arrow) {
     arrow::write_parquet(geogedi_data, paste0("O", orb, "_shifted.parquet"))
