@@ -367,6 +367,7 @@ process_orbit <- function(gedidata_path) {
 
   optim_accum <- dplyr::left_join(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
   gedidata_ap <- tibble:as_tibble(gedidata_ap)
+
   rm(df_accum)
   # Order the dataframes
   gedidata_tile <- gedidata_tile %>%
@@ -378,7 +379,8 @@ process_orbit <- function(gedidata_path) {
 
   # Count number of footprints
   nb_ftp <- gedidata_tile %>%
-    dplyr::summarise(Unique_Elements = dplyr::n_distinct(shot_number))
+    dplyr::summarise(Unique_Elements = dplyr::n_distinct(shot_number)) %>%
+    as.data.frame()
   nb_ftp <- nb_ftp[, 1]
 
   #------------------------------------------
