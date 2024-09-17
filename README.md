@@ -88,11 +88,11 @@ The script takes 3 arguments :
 - geoid undulation grid (raster format)
 - optional input polygon for spatial subset
 
-```bash
-./ExtractH5data.R <directory of H5 files> <my geoid> <region of interest>
+```raw
+ExtractH5data.R <directory of H5 files> <my geoid> <region of interest>
 ```
 
-Resulting RDS files are written in same directory as H5 files.
+Outputs will be written in current directory.  
 
 ### GeoGEDI.R
 
@@ -102,6 +102,14 @@ Run GeoGEDI algorithm, parallelized by orbit.
 
 - Smoothed Digital Terrain Model
 - GEDI variables saved as Rdata: shotnumber, beam, delta_time, elev_lowestmode, lat_lowestmode, lon_lowestmode
+
+#### Usage
+
+```raw
+GeoGEDI.R <data dir with one file per orbit> <dem tif or vrt file>
+```
+
+Outputs will be written in current directory.  
 
 ### legacy/*.R
 
