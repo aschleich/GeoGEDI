@@ -22,7 +22,6 @@ gedidata_path <- normalizePath(arguments[1])
 dem_smooth_path <- normalizePath(arguments[2])
 
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
-quality_filter <- FALSE
 
 #------------------------------------------
 # Algorithm parameters
@@ -47,6 +46,9 @@ step_half <- 0.215
 # twobeams uses the neighboring footprints of same laser unit beams of the dataset
 approach <- "twobeams"
 
+# Filter already applied in ExtractH5data.R
+quality_filter <- FALSE
+
 #------------------------------------------
 # Outputs
 #------------------------------------------
@@ -69,7 +71,8 @@ if (tools::file_ext(gedidata_path) == "parquet") {
 }
 
 if (quality_filter) {
-  gedidata <- subset(gedidata, quality_flag == "01" & degrage_flag == "00" & power == "full")
+  gedidata <- subset(gedidata, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
+  gedidata <- subset(gedidata, select = -c(surface_flag, degrade_flag, quality_flag))
 }
 
 if (nrow(gedidata) == 0) {
@@ -88,14 +91,17 @@ if (use_arrow) {
   # Convert f64 columns to f32 in order to save disk space
   make_arrow_table <- function(dataframe) {
     float64_cols <- sapply(dataframe, is.double)
+    int_cols <- sapply(df, is.integer)
     schema_list <- lapply(names(dataframe), function(col_name) {
-      if (float64_cols[[col_name]] && ! col_name %in% c("delta_time", "lat", "lon") ) {
+      if (float64_cols[[col_name]] && !col_name %in% c("delta_time", "lat", "lon")) {
         arrow::field(col_name, arrow::float32())
+      } else if (int_cols[[col_name]]) {
+        arrow::field(col_name, int32())
       } else {
         arrow::field(col_name, arrow::infer_type(dataframe[[col_name]]))
       }
     })
-    return(Table$create(dataframe, schema = arrow::schema(schema_list)))
+    return(arrow::Table$create(dataframe, schema = arrow::schema(schema_list)))
   }
 }
 
@@ -172,87 +178,86 @@ flowaccum <- function(df, accum_dir, criteria, var, shot) {
 }
 
 process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
-    shot_ftp <- optim_accum[footprint_idx, ]$shot_number
-    time_ftp <- optim_accum[footprint_idx, ]$delta_time
-    beam_nameftp <- optim_accum[footprint_idx, ]$beam_name
+  shot_ftp <- optim_accum[footprint_idx, ]$shot_number
+  time_ftp <- optim_accum[footprint_idx, ]$delta_time
+  beam_nameftp <- optim_accum[footprint_idx, ]$beam_name
 
-    # Init dtplyr
-    gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
+  # Init dtplyr
+  gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
 
-    # Set time to select neighboring footprints for cluster
-    time_ftpmin <- time_ftp - step_half
-    time_ftpmax <- time_ftp + step_half
-    gedidata_tilespec <- gedidata_tile %>%
-      dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax)
-  
-    # Define cluster : select neighboring footprints depending on approach
-    if (approach == "singlebeam") {
+  # Set time to select neighboring footprints for cluster
+  time_ftpmin <- time_ftp - step_half
+  time_ftpmax <- time_ftp + step_half
+  gedidata_tilespec <- gedidata_tile %>%
+    dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax)
+
+  # Define cluster : select neighboring footprints depending on approach
+  if (approach == "singlebeam") {
+    gedidata_tilespec <- gedidata_tilespec %>%
+      dplyr::filter(beam_name == beam_nameftp)
+  } else if (approach == "twobeams") {
+    if (beam_nameftp == "BEAM0101" || beam_nameftp == "BEAM0110") {
       gedidata_tilespec <- gedidata_tilespec %>%
-        dplyr::filter(beam_name == beam_nameftp)
-    } else if (approach == "twobeams") {
-      if (beam_nameftp == "BEAM0101" || beam_nameftp == "BEAM0110") {
-        gedidata_tilespec <- gedidata_tilespec %>%
-          dplyr::filter(beam_name == "BEAM0101" | beam_name == "BEAM0110")
-      }
-      if (beam_nameftp == "BEAM1000" || beam_nameftp == "BEAM1011") {
-        gedidata_tilespec <- gedidata_tilespec %>%
-          dplyr::filter(beam_name == "BEAM1000" | beam_name == "BEAM1011")
-      }
-      if (beam_nameftp == "BEAM0000" || beam_nameftp == "BEAM0001") {
-        gedidata_tilespec <- gedidata_tilespec %>%
-          dplyr::filter(beam_name == "BEAM0000" | beam_name == "BEAM0001")
-      }
-      if (beam_nameftp == "BEAM0010" || beam_nameftp == "BEAM0011") {
-        gedidata_tilespec <- gedidata_tilespec %>%
-          dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
-      }
-      if ( length(unique(gedidata_tilespec$beam_name)) == 1 ) {
-        print("Only one beam name left after filtering, cannot use the 'twobeams' approach.")
-        return(NULL)
-      }
-    } else if (approach != "allbeams") {
-      print("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
-      quit("no", 1)
+        dplyr::filter(beam_name == "BEAM0101" | beam_name == "BEAM0110")
     }
-
-    # Calculate statistics for each position in search window
-    df_tilespec <- gedidata_tilespec %>% # for cluster
-      dplyr::group_by(orbit, x_offset, y_offset) %>%
-      dplyr::summarise(
-        .groups = "keep",
-        footprint_nb = n(),
-        shift_x = mean(x_offset),
-        shift_y = mean(y_offset),
-        Err = mean(diff),
-        AbsErr = mean(abs(diff)),
-        Corr = cor(elev, elev_ngf),
-        RMSE = ModelMetrics::rmse(elev, elev_ngf)
-      ) %>%
-      tibble::as_tibble()
-
-    # If at least X footprints in the search window
-    # Use 1 to execute on all footprints, may be changed to higher value (ex. 30) to not execute code for footprints with few neighbours.
-    if (df_tilespec$footprint_nb[1] >= 1) {
-
-      # Run flow accumulation algorithm to find best shift
-      # Define bary or min criteria to select final optimal position
-      # Define variable ex.: AbsErr to create error map on
-      df_accum_bary <- df_tilespec %>%
-        dplyr::group_by(orbit) %>%
-        dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = shot_ftp))
-
-      # Join
-      df_accum_tilespec_bary <- plyr::join(df_accum_bary, df_tilespec, type = "inner", by = c("orbit", "x_offset", "y_offset"))
-      df_accum_tilespec_bary$shot_ftp <- shot_ftp
-      df_accum_tilespec_bary$time_ftp <- time_ftp
-
-      # Save a backup every 1000 footprints
-      # if (footprint%%1000 == 0){
-      #   saveRDS(ftp_shift_bary, paste0(accum_dir,"footprint_shift_bary_backup_", footprint, ".rds"))
-      # }
-
-      return(df_accum_tilespec_bary)
+    if (beam_nameftp == "BEAM1000" || beam_nameftp == "BEAM1011") {
+      gedidata_tilespec <- gedidata_tilespec %>%
+        dplyr::filter(beam_name == "BEAM1000" | beam_name == "BEAM1011")
     }
+    if (beam_nameftp == "BEAM0000" || beam_nameftp == "BEAM0001") {
+      gedidata_tilespec <- gedidata_tilespec %>%
+        dplyr::filter(beam_name == "BEAM0000" | beam_name == "BEAM0001")
+    }
+    if (beam_nameftp == "BEAM0010" || beam_nameftp == "BEAM0011") {
+      gedidata_tilespec <- gedidata_tilespec %>%
+        dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
+    }
+    if (length(unique(gedidata_tilespec$beam_name)) == 1) {
+      print("Only one beam name left after filtering, cannot use the 'twobeams' approach.")
+      return(NULL)
+    }
+  } else if (approach != "allbeams") {
+    print("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
+    quit("no", 1)
+  }
+
+  # Calculate statistics for each position in search window
+  df_tilespec <- gedidata_tilespec %>% # for cluster
+    dplyr::group_by(orbit, x_offset, y_offset) %>%
+    dplyr::summarise(
+      .groups = "keep",
+      footprint_nb = n(),
+      shift_x = mean(x_offset),
+      shift_y = mean(y_offset),
+      Err = mean(diff),
+      AbsErr = mean(abs(diff)),
+      Corr = cor(elev, elev_ngf),
+      RMSE = ModelMetrics::rmse(elev, elev_ngf)
+    ) %>%
+    tibble::as_tibble()
+
+  # If at least X footprints in the search window
+  # Use 1 to execute on all footprints, may be changed to higher value (ex. 30) to not execute code for footprints with few neighbours.
+  if (df_tilespec$footprint_nb[1] >= 1) {
+    # Run flow accumulation algorithm to find best shift
+    # Define bary or min criteria to select final optimal position
+    # Define variable ex.: AbsErr to create error map on
+    df_accum_bary <- df_tilespec %>%
+      dplyr::group_by(orbit) %>%
+      dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = shot_ftp))
+
+    # Join
+    df_accum_tilespec_bary <- plyr::join(df_accum_bary, df_tilespec, type = "inner", by = c("orbit", "x_offset", "y_offset"))
+    df_accum_tilespec_bary$shot_ftp <- shot_ftp
+    df_accum_tilespec_bary$time_ftp <- time_ftp
+
+    # Save a backup every 1000 footprints
+    # if (footprint%%1000 == 0){
+    #   saveRDS(ftp_shift_bary, paste0(accum_dir,"footprint_shift_bary_backup_", footprint, ".rds"))
+    # }
+
+    return(df_accum_tilespec_bary)
+  }
 }
 
 process_orbit <- function(gedidata_full) {
@@ -262,7 +267,7 @@ process_orbit <- function(gedidata_full) {
 
   ## Extract elevation values orbit by orbit
   orb <- unique(gedidata_ap$orbit)
-  #print(paste("Processing orbit", orb))
+  # print(paste("Processing orbit", orb))
 
   #---------------------------
   # Extract elevation values
@@ -280,7 +285,9 @@ process_orbit <- function(gedidata_full) {
   gedidata_ap <- terra::subset(gedidata_ap, !is.na(gedidata_ap$elev00), drop = TRUE)
 
   # Stop here if the footprints does not intersect with DTM
-  if (dim(gedidata_ap)[1] == 0) return(NULL)
+  if (dim(gedidata_ap)[1] == 0) {
+    return(NULL)
+  }
 
   # Else the search window is defined
   gedidata_ap <- merge(gedidata_ap, search_df, by = NULL)
@@ -379,10 +386,8 @@ process_orbit <- function(gedidata_full) {
   # saveRDS(ftp_shift_bary, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
 
   col_names <- c("shot_ftp", "x_offset", "y_offset", "max_accum", "footprint_nb", "Err", "AbsErr", "Corr", "RMSE")
-  by_x <- c("shot_number", "x_offset", "y_offset")
-  by_y <- c("shot_ftp", "x_offset", "y_offset")
-  geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = by_x, by.y = by_y)
-  geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full)
+  geogedi_data <- merge(gedidata_ap, ftp_shift_bary[col_names], by.x = c("shot_number", "x_offset", "y_offset"), by.y = c("shot_ftp", "x_offset", "y_offset"))
+  geogedi_data <- dplyr::inner_join(geogedi_data, gedidata_full, by = c("shot_number", "x", "y", "orbit", "delta_time", "beam_name", "elev_ngf"))
 
   if (use_arrow) {
     arrow::write_parquet(make_arrow_table(geogedi_data), paste0("O", orb, "_shifted.parquet"))
@@ -398,8 +403,10 @@ gedidata <- gedidata %>%
 
 # Single core - simply lapply
 if (n_cores == 1) {
-  for (orb in gedidata) { process_orbit(orb) }
-# Parallel execution
+  for (orb in gedidata) {
+    process_orbit(orb)
+  }
+  # Parallel execution
 } else {
   library(foreach)
   library(iterators)

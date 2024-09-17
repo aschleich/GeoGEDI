@@ -160,6 +160,7 @@ process_orbit <- function(h5_file) {
   n_samples <- dim(gedi_df)[1]
   if (quality_filter) {
     gedi_df <- terra::subset(gedi_df, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
+    gedi_df <- terra::subset(gedi_df, select = -c(surface_flag, degrade_flag, quality_flag))
   }
   # Clean tmp data in case of unzip
   if (is_tmp) {
