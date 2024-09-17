@@ -196,6 +196,10 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
         gedidata_tilespec <- gedidata_tilespec %>%
           dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
       }
+      if ( length(unique(gedidata_tilespec$beam_name))) == 1 ) {
+        print("Only one beam name left after filtering, cannot use the 'twobeams' approach")
+        return(NULL)
+      }
     } else if (approach != "allbeams") {
       print("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
       quit("no", 1)
