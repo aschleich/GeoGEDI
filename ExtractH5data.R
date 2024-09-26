@@ -168,21 +168,22 @@ process_orbit <- function(h5_file) {
   if (is_tmp) {
     file.remove(h5_file)
   }
-
-  orbit <- unique(gedi_df$orbit)[1]
   if (dim(gedi_df)[1] == 0) {
     print("Couldn't find any good quality samples within ROI")
-  } else {
-    print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
+    return(NULL)
+  }
 
+  for (orb in unique(gedi_df$orbit)) {
+    out_df <- terra::subset(gedi_df, orbit == orb)
+    print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
     if (use_arrow) {
-      arrow::write_parquet(gedi_df, paste0("O", orbit, ".parquet"))
+      arrow::write_parquet(out_df, paste0("O", orb, ".parquet"))
     } else {
-      saveRDS(gedi_df, file = paste0("O", orbit, ".rds"))
+      saveRDS(out_df, file = paste0("O", orb, ".rds"))
     }
     if (out_vector) {
-      gedi_df <- terra::vect(gedi_df, geom = c("x", "y"), crs = target_crs)
-      terra::writeVector(gedi_df, paste0("O", orbit, ".gpkg"), overwrite = TRUE)
+      out_df <- terra::vect(out_df, geom = c("x", "y"), crs = target_crs)
+      terra::writeVector(out_df, paste0("O", orb, ".gpkg"), overwrite = TRUE)
     }
   }
 }
