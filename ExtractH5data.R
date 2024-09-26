@@ -172,10 +172,10 @@ process_orbit <- function(h5_file) {
     print("Couldn't find any good quality samples within ROI")
     return(NULL)
   }
+  print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
 
   for (orb in unique(gedi_df$orbit)) {
     out_df <- terra::subset(gedi_df, orbit == orb)
-    print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
     if (use_arrow) {
       arrow::write_parquet(out_df, paste0("O", orb, ".parquet"))
     } else {
