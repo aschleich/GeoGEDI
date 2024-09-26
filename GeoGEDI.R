@@ -27,7 +27,7 @@ target_crs <- terra::crs(terra::rast(dem_smooth_path))
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
-n_cores <- 4
+n_cores <- 1
 
 # Set Search window
 search_dist <- 50
@@ -243,10 +243,13 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
 }
 
 process_orbit <- function(gedidata_path) {
+  print(paste("Processing file", gedidata_path))
   if (tools::file_ext(gedidata_path) == "parquet") {
     gedidata_full <- arrow::read_parquet(gedidata_path)
+    ext <- "parquet"
   } else {
     gedidata_full <- readRDS(gedidata_path)
+    ext <- "rds"
   }
 
   gedidata_full <- tibble::as_tibble(gedidata_full)
@@ -268,8 +271,8 @@ process_orbit <- function(gedidata_path) {
 
   ## Extract elevation values orbit by orbit
   orb <- unique(gedidata_ap$orbit)
-  # print(paste("Processing orbit", orb))
-
+  print(orb)
+  if (file.exists(paste0("O", orb, "_shifted.", ext))) { return(NULL) }
   #---------------------------
   # Extract elevation values
   #---------------------------
@@ -285,11 +288,9 @@ process_orbit <- function(gedidata_path) {
 
   gedidata_ap <- dplyr::filter(gedidata_ap, !is.na(elev00))
 
-  # Stop here if the footprints does not intersect with DTM
-  if (dim(gedidata_ap)[1] == 0) {
-    return(NULL)
-  }
-  
+  # Stop here if the footprints does not intersect with DTM  
+  if (dim(gedidata_ap)[1] == 0) { return(NULL) }
+
   # Else the search window is defined
   gedidata_ap <- dplyr::cross_join(gedidata_ap, search_df)
 
@@ -317,9 +318,12 @@ process_orbit <- function(gedidata_path) {
     dplyr::summarise(count = n()) %>%
     dplyr::filter(count == nb_extracted) %>%
     tibble::as_tibble()
+
   gedidata_ap <- gedidata_ap %>%
     dplyr::filter(shot_number %in% gedidata_summary$shot_number)
 
+  if (dim(tibble::as_tibble(gedidata_ap))[1] == 0) { return(NULL) }
+  
   rm(gedidata_summary)
   # saveRDS(gedidata_ap, file = paste0(results_dir, sep, orb, ".rds"))
 
@@ -359,7 +363,7 @@ process_orbit <- function(gedidata_path) {
   # Prepare a smaller dataset with only needed variables
   gedidata_tile <- gedidata_ap %>%
     dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
-
+  
   # Get general optimal position for all footprints combined
   df_accum <- df_accum %>%
     dplyr::group_by(orbit) %>%
