@@ -20,7 +20,7 @@ if (startsWith(basename(geoid_grid_file), "fr_ign_RAF")) {
 } else if (startsWith(basename(geoid_grid_file), "fr_ign_RAC")) {
   epsg_code <- "5699"
 } else {
-  print("Could not guess CRS based on geoid filename.")
+  warning("Could not guess CRS based on geoid filename.")
   epsg_code <- readline(prompt = "Enter your EPSG number:")
 }
 target_crs <- paste0("epsg:", epsg_code)
@@ -95,14 +95,16 @@ process_beam <- function(beam_num, h5_obj) {
 process_orbit <- function(h5_file) {
   # Support for zipped H5 files
   is_tmp <- FALSE
+  h5_name <- tools::file_path_sans_ext(basename(h5_file))
+  orbit <- substr(unlist(stringr::str_split(h5_name, "_"))[4], 2, 6)
   if (tools::file_ext(h5_file) == "zip") {
     tmp <- tempdir()
     unzip(h5_file, exdir = tmp)
-    h5_file <- paste0(tmp, sep, tools::file_path_sans_ext(basename(h5_file)))
+    h5_file <- paste0(tmp, sep, h5_name)
     is_tmp <- TRUE
   }
 
-  print(paste0("Processing ", h5_file))
+  message(paste0("Processing orbit ", orbit))
   gedi_df <- NULL
 
   tryCatch(
@@ -115,14 +117,14 @@ process_orbit <- function(h5_file) {
     error = function(e) {
       if (grepl("HDF5. Object header. Can't open object.", e)) {
         # TODO: check error message
-        print(paste0("Invalid H5 file: ", h5_file))
+        warning(paste0("Invalid H5 file: ", h5_file))
         if (!is_tmp) {
-          print("Moving to 'trash' folder")
+          message("Moving to 'trash' folder")
           file.copy(h5_file, paste0("trash", sep, basename(h5_file)))
           file.remove(h5_file)
         }
       } else {
-        print(e)
+        warning(e)
       }
     }
   )
@@ -130,7 +132,7 @@ process_orbit <- function(h5_file) {
     return(NULL)
   }
 
-  gedi_df$orbit <- substr(gedi_df$shot_number, 1, 5)
+  gedi_df$orbit <- orbit
   geom_cols <- c("lon_lowestmode", "lat_lowestmode")
 
   # Convert dataframe to SpatVector
@@ -169,22 +171,19 @@ process_orbit <- function(h5_file) {
     file.remove(h5_file)
   }
   if (dim(gedi_df)[1] == 0) {
-    print("Couldn't find any good quality samples within ROI")
+    message("Couldn't find any good quality samples within ROI")
     return(NULL)
   }
-  print(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
+  message(paste0("Extracted ", dim(gedi_df)[1], "/", n_samples, " samples"))
 
-  for (orb in unique(gedi_df$orbit)) {
-    out_df <- terra::subset(gedi_df, orbit == orb)
-    if (use_arrow) {
-      arrow::write_parquet(out_df, paste0("O", orb, ".parquet"))
-    } else {
-      saveRDS(out_df, file = paste0("O", orb, ".rds"))
-    }
-    if (out_vector) {
-      out_df <- terra::vect(out_df, geom = c("x", "y"), crs = target_crs)
-      terra::writeVector(out_df, paste0("O", orb, ".gpkg"), overwrite = TRUE)
-    }
+  if (use_arrow) {
+    arrow::write_parquet(gedi_df, paste0("O", orbit, ".parquet"))
+  } else {
+    saveRDS(gedi_df, file = paste0("O", orbit, ".rds"))
+  }
+  if (out_vector) {
+    gedi_df <- terra::vect(gedi_df, geom = c("x", "y"), crs = target_crs)
+    terra::writeVector(gedi_df, paste0("O", orbit, ".gpkg"), overwrite = TRUE)
   }
 }
 

@@ -190,12 +190,11 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
         dplyr::filter(beam_name == "BEAM0010" | beam_name == "BEAM0011")
     }
     if (length(unique(gedidata_tile$beam_name)) == 1) {
-      # print("Only one beam name left after filtering, cannot use the 'twobeams' approach.")
+      # message("Only one beam name left after filtering, cannot use the 'twobeams' approach.")
       return(NULL)
     }
   } else if (approach != "allbeams") {
-    print("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
-    quit("no", 1)
+    stop("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
   }
 
   # Calculate statistics for each position in search window
@@ -237,7 +236,7 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
 }
 
 process_orbit <- function(gedidata_path) {
-  print(paste("Processing file", gedidata_path))
+  message(paste("Processing file", gedidata_path))
   if (tools::file_ext(gedidata_path) == "parquet") {
     ext <- "parquet"
     gedidata_full <- arrow::read_parquet(gedidata_path)
@@ -252,7 +251,7 @@ process_orbit <- function(gedidata_path) {
     gedidata_full <- gedidata_full %>%
       dplyr::select(surface_flag, degrade_flag, quality_flag)
     if (nrow(gedidata_full) == 0) {
-      print("No remaining data after quality filter.")
+      message("No remaining data after quality filter.")
       return(NULL)
     }
   }
@@ -264,7 +263,7 @@ process_orbit <- function(gedidata_path) {
   ## Extract elevation values orbit by orbit
   orb <- unique(gedidata_ap$orbit)
   if (length(orb) > 1) {
-    print("File with multiple orbits, manual intervention needed.")
+    warning("Input file with multiple orbits, ignoring.")
     return(NULL)
   }
   if (file.exists(paste0("O", orb, "_shifted.", ext))) {
