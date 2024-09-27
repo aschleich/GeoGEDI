@@ -260,13 +260,13 @@ process_orbit <- function(gedidata_path) {
   gedidata_ap <- gedidata_full %>%
     dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
 
-  ## Extract elevation values orbit by orbit
+  ## Extract elevation values
   orb <- unique(gedidata_ap$orbit)
   if (length(orb) > 1) {
-    warning("Input file with multiple orbits, ignoring.")
-    return(NULL)
+    stop("Invalid input file with multiple orbits.")
   }
   if (file.exists(paste0("O", orb, "_shifted.", ext))) {
+    message("File already processed.")
     return(NULL)
   }
   #---------------------------
