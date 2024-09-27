@@ -76,7 +76,6 @@ if (use_arrow) {
   # Convert f64 columns to f32 in order to save disk space
   make_arrow_table <- function(dataframe) {
     float64_cols <- sapply(dataframe, is.double)
-    int_cols <- sapply(df, is.integer)
     schema_list <- lapply(names(dataframe), function(col_name) {
       if (float64_cols[[col_name]] && !col_name %in% c("delta_time", "lat", "lon")) {
         arrow::field(col_name, arrow::float32())
@@ -245,14 +244,12 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
 process_orbit <- function(gedidata_path) {
   print(paste("Processing file", gedidata_path))
   if (tools::file_ext(gedidata_path) == "parquet") {
-    gedidata_full <- arrow::read_parquet(gedidata_path)
     ext <- "parquet"
+    gedidata_full <- arrow::read_parquet(gedidata_path)
   } else {
-    gedidata_full <- readRDS(gedidata_path)
     ext <- "rds"
+    gedidata_full <- tibble::as_tibble(readRDS(gedidata_path))
   }
-
-  gedidata_full <- tibble::as_tibble(gedidata_full)
 
   if (quality_filter) {
     gedidata_full <- gedidata_full %>%
