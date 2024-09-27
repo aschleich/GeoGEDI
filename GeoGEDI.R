@@ -1,8 +1,6 @@
 #!/usr/bin/env Rscript
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
-library(data.table, warn.conflicts = FALSE)
 library(tidyr)
-library(dtplyr)
 library(dplyr, warn.conflicts = FALSE)
 use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FALSE))
 
@@ -163,8 +161,6 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
   shot_number <- optim_accum[footprint_idx, ]$shot_number
   time_ftp <- optim_accum[footprint_idx, ]$delta_time
   beam_nameftp <- optim_accum[footprint_idx, ]$beam_name
-  # Init dtplyr
-  gedidata_tile <- dtplyr::lazy_dt(gedidata_tile)
 
   # Set time to select neighboring footprints for cluster
   time_ftpmin <- time_ftp - step_half
@@ -214,8 +210,7 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
       AbsErr = mean(abs(diff)),
       Corr = cor(elev, elev_ngf),
       RMSE = ModelMetrics::rmse(elev, elev_ngf)
-    ) %>%
-    tibble::as_tibble()
+    )
 
   # If at least X footprints in the search window
   # Use 1 to execute on all footprints, may be changed to higher value (ex. 30) to not execute code for footprints with few neighbours.
@@ -310,8 +305,6 @@ process_orbit <- function(gedidata_path) {
   # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
   gedidata_ap$diff <- gedidata_ap$elev - gedidata_ap$elev_ngf
 
-  gedidata_ap <- dtplyr::lazy_dt(gedidata_ap)
-
   # Delete if diff > 100
   gedidata_ap <- gedidata_ap %>% dplyr::filter(abs(diff) <= 100)
 
@@ -320,13 +313,12 @@ process_orbit <- function(gedidata_path) {
     dplyr::group_by(shot_number) %>%
     dplyr::filter(!any(is.na(elev))) %>%
     dplyr::summarise(count = n()) %>%
-    dplyr::filter(count == nb_extracted) %>%
-    tibble::as_tibble()
+    dplyr::filter(count == nb_extracted)
 
   gedidata_ap <- gedidata_ap %>%
     dplyr::filter(shot_number %in% gedidata_summary$shot_number)
 
-  if (dim(tibble::as_tibble(gedidata_ap))[1] == 0) {
+  if (dim(gedidata_ap)[1] == 0) {
     return(NULL)
   }
 
@@ -360,8 +352,7 @@ process_orbit <- function(gedidata_path) {
       AbsErr = mean(abs(diff)),
       Corr = cor(elev, elev_ngf),
       RMSE = ModelMetrics::rmse(elev, elev_ngf)
-    ) %>%
-    tibble::as_tibble()
+    )
 
   #------------------------------------------
   # Preparation of Flow accumulation execution
@@ -381,11 +372,9 @@ process_orbit <- function(gedidata_path) {
 
   # Order the dataframes
   gedidata_tile <- gedidata_tile %>%
-    dplyr::arrange(delta_time) %>%
-    tibble::as_tibble()
+    dplyr::arrange(delta_time)
   optim_accum <- optim_accum %>%
-    dplyr::arrange(delta_time) %>%
-    tibble::as_tibble()
+    dplyr::arrange(delta_time)
 
   # Count number of footprints
   nb_ftp <- gedidata_tile %>%
@@ -401,7 +390,6 @@ process_orbit <- function(gedidata_path) {
 
   # Save the final file
   # saveRDS(gedidata_shifted, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
-  gedidata_ap <- tibble::as_tibble(gedidata_ap)
   gedidata_shifted <- dplyr::select(gedidata_shifted, orbit, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
   geogedi_data <- dplyr::inner_join(gedidata_ap, gedidata_shifted, by = c("orbit", "shot_number", "x_offset", "y_offset"))
   rm(gedidata_ap, gedidata_shifted)
