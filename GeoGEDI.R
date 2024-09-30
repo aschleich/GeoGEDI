@@ -246,7 +246,7 @@ process_orbit <- function(gedidata_path) {
 
   orb <- substr(basename(gedidata_path), 2, 6)
   if (file.exists(paste0("O", orb, "_shifted.", ext))) {
-    message("File already processed.")
+    message(paste("File ", basename(gedidata_path), " already processed."))
     return(NULL)
   } else {
     message(paste("Processing file", basename(gedidata_path)))
@@ -362,7 +362,7 @@ process_orbit <- function(gedidata_path) {
   gedidata_tile <- gedidata_ap %>%
     dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
 
-  message("Get general optimal position for all footprints combined")
+  # Get general optimal position for all footprints combined
   df_accum <- df_accum %>%
     dplyr::group_by(orbit) %>%
     dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb)) %>%
@@ -371,7 +371,7 @@ process_orbit <- function(gedidata_path) {
   optim_accum <- merge(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
   rm(df_accum)
 
-  message("Order the dataframes")
+  # Order the dataframes
   gedidata_tile <- gedidata_tile %>%
     dplyr::arrange(delta_time)
   optim_accum <- optim_accum %>%
@@ -386,11 +386,13 @@ process_orbit <- function(gedidata_path) {
   #------------------------------------------
   # Flow accumulation algorithm applied to each footprint
   #------------------------------------------
-  gedidata_shifted <- do.call(rbind, lapply(1:nb_ftp, process_footprint, gedidata_tile, optim_accum)) %>%
-    dplyr::select(orbit, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
+  gedidata_shifted <- do.call(rbind, lapply(1:nb_ftp, process_footprint, gedidata_tile, optim_accum))
+  print(dim(gedidata_shifted))
   rm(gedidata_tile, optim_accum)
 
   # Save the final file
+  gedidata_shifted <- gedidata_shifted %>%
+    dplyr::select(orbit, shot_number, x_offset, y_offset, max_accum, footprint_nb, Err, AbsErr, Corr, RMSE)
   # saveRDS(gedidata_shifted, file = paste0(results_dir, sep, "GeoGEDI_footprint_shift_full_", orb, ".rds"))
   geogedi_data <- dplyr::inner_join(gedidata_ap, gedidata_shifted, by = c("orbit", "shot_number", "x_offset", "y_offset"))
   rm(gedidata_ap, gedidata_shifted)
