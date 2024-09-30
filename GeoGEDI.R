@@ -251,9 +251,6 @@ process_orbit <- function(gedidata_path) {
   } else {
     message(paste("Processing file", basename(gedidata_path)))
   }
-  if (length(unique(gedidata_ap$orbit)) > 1) {
-    stop("Invalid input file with multiple orbits.")
-  }
 
   if (quality_filter) {
     gedidata_full <- gedidata_full %>%
@@ -269,6 +266,10 @@ process_orbit <- function(gedidata_path) {
   ## Keep only essential data
   gedidata_ap <- gedidata_full %>%
     dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
+
+  if (length(unique(gedidata_ap$orbit)) > 1) {
+    stop("Invalid input file with multiple orbits.")
+  }
 
   #---------------------------
   # Extract elevation values
