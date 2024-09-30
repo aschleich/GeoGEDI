@@ -387,7 +387,7 @@ process_orbit <- function(gedidata_path) {
   # Flow accumulation algorithm applied to each footprint
   #------------------------------------------
   gedidata_shifted <- do.call(rbind, lapply(1:nb_ftp, process_footprint, gedidata_tile, optim_accum))
-  print(dim(gedidata_shifted))
+  print(gedidata_shifted)
   rm(gedidata_tile, optim_accum)
 
   # Save the final file
