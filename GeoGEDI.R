@@ -246,7 +246,7 @@ process_orbit <- function(gedidata_path) {
 
   orb <- substr(basename(gedidata_path), 2, 6)
   if (file.exists(paste0("O", orb, "_shifted.", ext))) {
-    message(paste("File ", basename(gedidata_path), " already processed."))
+    message(paste("File", basename(gedidata_path), "already processed."))
     return(NULL)
   } else {
     message(paste("Processing file", basename(gedidata_path)))
@@ -387,8 +387,10 @@ process_orbit <- function(gedidata_path) {
   # Flow accumulation algorithm applied to each footprint
   #------------------------------------------
   gedidata_shifted <- do.call(rbind, lapply(1:nb_ftp, process_footprint, gedidata_tile, optim_accum))
-  print(gedidata_shifted)
   rm(gedidata_tile, optim_accum)
+  if (is.null(gedidata_shifted)) {
+    return(NULL)
+  }
 
   # Save the final file
   gedidata_shifted <- gedidata_shifted %>%
