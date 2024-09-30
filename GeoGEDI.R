@@ -361,7 +361,7 @@ process_orbit <- function(gedidata_path) {
   gedidata_tile <- gedidata_ap %>%
     dplyr::select(orbit, beam_name, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
 
-  # Get general optimal position for all footprints combined
+  message("Get general optimal position for all footprints combined")
   df_accum <- df_accum %>%
     dplyr::group_by(orbit) %>%
     dplyr::do(flowaccum(., accum_dir = accum_dir, criteria = "bary", var = "AbsErr", shot = orb)) %>%
@@ -370,7 +370,7 @@ process_orbit <- function(gedidata_path) {
   optim_accum <- merge(gedidata_ap, df_accum, by = c("orbit", "x_offset", "y_offset"))
   rm(df_accum)
 
-  # Order the dataframes
+  message("Order the dataframes")
   gedidata_tile <- gedidata_tile %>%
     dplyr::arrange(delta_time)
   optim_accum <- optim_accum %>%
