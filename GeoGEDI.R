@@ -236,13 +236,23 @@ process_footprint <- function(footprint_idx, gedidata_tile, optim_accum) {
 }
 
 process_orbit <- function(gedidata_path) {
-  message(paste("Processing file", gedidata_path))
   if (tools::file_ext(gedidata_path) == "parquet") {
     ext <- "parquet"
     gedidata_full <- arrow::read_parquet(gedidata_path)
   } else {
     ext <- "rds"
     gedidata_full <- tibble::as_tibble(readRDS(gedidata_path))
+  }
+
+  orb <- substr(basename(gedidata_path), 2, 6)
+  if (file.exists(paste0("O", orb, "_shifted.", ext))) {
+    message("File already processed.")
+    return(NULL)
+  } else {
+    message(paste("Processing file", basename(gedidata_path)))
+  }
+  if (length(unique(gedidata_ap$orbit)) > 1) {
+    stop("Invalid input file with multiple orbits.")
   }
 
   if (quality_filter) {
@@ -260,15 +270,6 @@ process_orbit <- function(gedidata_path) {
   gedidata_ap <- gedidata_full %>%
     dplyr::select(shot_number, x, y, orbit, delta_time, beam_name, elev_ngf)
 
-  ## Extract elevation values
-  orb <- unique(gedidata_ap$orbit)
-  if (length(orb) > 1) {
-    stop("Invalid input file with multiple orbits.")
-  }
-  if (file.exists(paste0("O", orb, "_shifted.", ext))) {
-    message("File already processed.")
-    return(NULL)
-  }
   #---------------------------
   # Extract elevation values
   #---------------------------
