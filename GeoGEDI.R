@@ -17,8 +17,8 @@ if (.Platform$OS.type == "windows") {
 #------------------------------------------
 
 arguments <- commandArgs(trailingOnly = TRUE)
-gedidata_path <- normalizePath(arguments[1])
-dem_smooth_path <- normalizePath(arguments[2])
+gedidata_path <- arguments[1]
+dem_smooth_path <- arguments[2]
 
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
 
