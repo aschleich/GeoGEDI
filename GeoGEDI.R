@@ -17,7 +17,7 @@ if (.Platform$OS.type == "windows") {
 #------------------------------------------
 
 arguments <- commandArgs(trailingOnly = TRUE)
-gedidata_dir <- normalizePath(arguments[1])
+gedidata_path <- normalizePath(arguments[1])
 dem_smooth_path <- normalizePath(arguments[2])
 
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
@@ -56,7 +56,7 @@ error_plots <- FALSE
 accum_dir <- "accum"
 results_dir <- "results"
 
-# setwd(dirname(gedidata_dir))
+# setwd(dirname(gedidata_path))
 for (d in c(accum_dir, results_dir)) {
   if (!dir.exists(d)) {
     dir.create(d)
@@ -413,7 +413,12 @@ if (use_arrow) {
 } else {
   pattern <- "*.rds"
 }
-gedi_files <- paste0(gedidata_dir, sep, dir(gedidata_dir, pattern = pattern))
+
+if (dir.exists(gedidata_path)) {
+  gedi_files <- paste0(gedidata_path, sep, dir(gedidata_path, pattern = pattern))
+} else if (file.exists(gedidata_path)) {
+  gedi_files <- c(gedidata_path)
+}
 
 # Single core - simply lapply
 if (n_cores == 1) {
