@@ -9,5 +9,9 @@ RUN useradd -u 1001 -s /bin/bash -m geogedi
 USER geogedi
 RUN R -q -e 'library(whitebox) ; install_whitebox()'
 
+ENV GDAL_CACHEMAX=1024
+ENV GDAL_DISABLE_READDIR_ON_OPEN=true
+
+ENV PATH="/home/geogedi/.local/bin:$PATH"
 COPY *.R /usr/local/bin/
 CMD ["/bin/bash"]
