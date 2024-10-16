@@ -120,7 +120,7 @@ filter_footprints <- function(gedidata_ap, time_ftp, beam_nameftp) {
 }
 
 #------------------------------------------
-# Create dataframe of beams and offsets be used with flowaccum
+# Create dataframe of footprints x every offsets in search_df
 #------------------------------------------
 make_search_window <- function(df_todo, dem_smooth) {
   df_todo <- dplyr::cross_join(df_todo, search_df)
@@ -275,9 +275,8 @@ process_orbit <- function(gedidata_path) {
   gedidata_ap$elev00 <- unlist(terra::extract(dem_smooth, gedidata_geo)[2])
   rm(gedidata_geo)
 
-  gedidata_ap <- dplyr::filter(gedidata_ap, !is.na(elev00))
-
   # Stop here if the footprints does not intersect with DTM
+  gedidata_ap <- dplyr::filter(gedidata_ap, !is.na(elev00))
   if (dim(gedidata_ap)[1] == 0) {
     return(NULL)
   }
@@ -323,6 +322,9 @@ process_orbit <- function(gedidata_path) {
     }
 
     df_offsets <- rbind(df_offsets, make_search_window(df_todo, dem_smooth))
+    if (is.null(df_offsets) || nrow(df_offsets) == 0) {
+      next
+    }
 
     # Calculate statistics for each position in search window
     gedidata_tile <- df_offsets %>%
@@ -346,6 +348,7 @@ process_orbit <- function(gedidata_path) {
       df_accum_bary <- gedidata_tile %>%
         dplyr::group_by(orbit) %>%
         dplyr::do(flowaccum(., accum_dir = accum_dir, criterion = "bary", variable = "AbsErr", shot = shot_number))
+
       df_accum_bary$shot_number <- shot_number
       # Join
       df_accum_tilespec_bary <- dplyr::inner_join(df_accum_bary, df_offsets, by = c("orbit", "shot_number", "x_offset", "y_offset"))
