@@ -84,7 +84,7 @@ if (use_arrow) {
 #------------------------------------------
 # Select footprints based on shot time and 'approach' setting
 #------------------------------------------
-filter_footprints <- function(gedidata_ap, beam_nameftp) {
+filter_footprints <- function(gedidata_ap, time_ftp, beam_nameftp) {
   # Set time to select neighboring footprints for cluster
   time_ftpmin <- time_ftp - step_half
   time_ftpmax <- time_ftp + step_half
@@ -306,7 +306,7 @@ process_orbit <- function(gedidata_path) {
     time_ftp <- gedidata_ap[ftp_idx, ]$delta_time
     beam_nameftp <- gedidata_ap[ftp_idx, ]$beam_name
 
-    df_neighbours <- filter_footprints(gedidata_ap, beam_nameftp)
+    df_neighbours <- filter_footprints(gedidata_ap, time_ftp, beam_nameftp)
     if (is.null(df_neighbours) || nrow(df_neighbours) == 0) {
       # In case df is empty or single beam name left but approach is twobeams
       next
