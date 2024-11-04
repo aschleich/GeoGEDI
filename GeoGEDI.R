@@ -36,7 +36,8 @@ step_half <- 0.215
 # 0.215 is around 200 full beam footprints, 0.215 seconds on each side of the "main" footprint
 
 # Number of time steps forward to keep in sliding window of beam offsets
-win_steps <- 3
+# Higher values will increase RAM usage but may speed up computation
+steps_forward <- 4
 
 # Approach to be used while selecting footprints
 # "singlebeam" uses only neighboring footprints of the same beam
@@ -147,7 +148,7 @@ get_offsets <- function(df_todo, dem_smooth) {
 
   df_todo <- df_todo %>%
     dplyr::filter(shot_number %in% df_summary$shot_number) %>%
-    dplyr::select(orbit, shot_number, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
+    dplyr::select(orbit, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
 
   return(df_todo)
 }
@@ -167,7 +168,8 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_", shot, "_", orb, "_", variable)
     png(filename = paste0(basename, ".png"))
-    terra::plot(errormap, main = basename, asp = 1, xlim = c(-50, 50), ylim = c(-50, 50))
+    plot_bounds <- c(-search_dist, search_dist)
+    terra::plot(errormap, main = basename, asp = 1, xlim = plot_bounds, ylim = plot_bounds)
     dev.off()
   }
 
@@ -195,7 +197,7 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
   if (error_plots) {
     basename <- paste0(accum_dir, sep, "mnt_flow_", shot, "_", orb, "_", variable)
     grDevices::png(filename = paste0(basename, ".png"))
-    terra::plot(accum, main = basename, asp = 1, xlim = c(-50, 50))
+    terra::plot(accum, main = basename, asp = 1, xlim = c(-search_dist, search_dist))
     grDevices::dev.off()
   }
 
@@ -304,12 +306,7 @@ process_orbit <- function(gedidata_path) {
     shot_number <- gedidata_ap[ftp_idx, ]$shot_number
     time_ftp <- gedidata_ap[ftp_idx, ]$delta_time
     beam_nameftp <- gedidata_ap[ftp_idx, ]$beam_name
-    win_time_max <- time_ftp + step_half * (win_steps + 1)
-
-    if (! is.null(df_offsets)) {
-      # Remove unused offsets from global df_offsets
-      df_offsets <- dplyr::filter(df_offsets, delta_time >= time_ftp - step_half)
-    }
+    win_time_max <- time_ftp + step_half * (steps_forward + 1)
 
     df_neighbours <- filter_footprints(gedidata_ap, time_ftp, beam_nameftp)
     if (is.null(df_neighbours) || nrow(df_neighbours) == 0) {
@@ -320,21 +317,16 @@ process_orbit <- function(gedidata_path) {
     last_beam <- df_neighbours[df_neighbours$delta_time == max(df_neighbours$delta_time), ]
     if (is.null(df_offsets)) {
       df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftp - step_half, delta_time <= win_time_max)
-      df_offsets <- get_offsets(df_todo)
-      print(paste0("First offsets computation, length=", length(df_offsets)))
+      df_offsets <- get_offsets(df_todo, dem_smooth)
     } else if (!(last_beam[1]$shot_number %in% df_offsets$shot_number)) {
-      # Filter neighbours that aren't already processed to generate every offsets
-      print(paste0("Renew offsets, length_before=", length(df_offsets)))
-      df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftpmin, delta_time <= win_time_max)
+      df_offsets <- dplyr::filter(df_offsets, delta_time > time_ftp - step_half)
+      df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_todo <- dplyr::filter(df_todo, !(shot_number %in% df_offsets$shot_number))
       df_offsets <- rbind(df_offsets, get_offsets(df_todo, dem_smooth))
-      print(paste0("Renew offsets, length_after=", length(df_offsets)))
     }
-    print(paste0("Currently ", length(df_offsets), " offsets in total"))
     rm(df_todo)
 
     df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
-    print(paste0("Using ", length(df_current_offsets), " offsets for current beam"))
     if (is.null(df_current_offsets) || nrow(df_current_offsets) == 0) {
       next
     }
@@ -371,8 +363,9 @@ process_orbit <- function(gedidata_path) {
   }
 
   # Save the final file
-  df_results <- dplyr::inner_join(gedidata_ap, df_results, by = c("orbit", "shot_number", "elev_ngf"))
+  df_results <- dplyr::inner_join(gedidata_ap, df_results, by = c("orbit", "shot_number", "delta_time", "elev_ngf"))
   rm(gedidata_ap)
+  print(colnames(df_results))
   df_results <- dplyr::inner_join(df_results, gedidata_full, by = c("orbit", "beam_name", "shot_number", "delta_time", "x", "y", "elev_ngf"))
   rm(gedidata_full)
 
