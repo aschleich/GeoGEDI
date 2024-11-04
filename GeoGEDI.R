@@ -23,7 +23,7 @@ target_crs <- terra::crs(terra::rast(dem_smooth_path))
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
-n_cores <- 10
+n_cores <- 1
 
 # Search window
 search_dist <- 50
@@ -365,7 +365,6 @@ process_orbit <- function(gedidata_path) {
   # Save the final file
   df_results <- dplyr::inner_join(gedidata_ap, df_results, by = c("orbit", "shot_number", "delta_time", "elev_ngf"))
   rm(gedidata_ap)
-  print(colnames(df_results))
   df_results <- dplyr::inner_join(df_results, gedidata_full, by = c("orbit", "beam_name", "shot_number", "delta_time", "x", "y", "elev_ngf"))
   rm(gedidata_full)
 
