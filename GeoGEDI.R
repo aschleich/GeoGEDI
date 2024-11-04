@@ -35,6 +35,9 @@ search_step <- 2
 step_half <- 0.215
 # 0.215 is around 200 full beam footprints, 0.215 seconds on each side of the "main" footprint
 
+# Number of time steps forward to keep in sliding window of beam offsets
+win_steps <- 3
+
 # Approach to be used while selecting footprints
 # "singlebeam" uses only neighboring footprints of the same beam
 # "allbeams" uses the neighboring footprints of all beams
@@ -119,10 +122,7 @@ filter_footprints <- function(gedidata_ap, time_ftp, beam_nameftp) {
   }
 }
 
-#------------------------------------------
-# Create dataframe of footprints x every offsets in search_df
-#------------------------------------------
-make_search_window <- function(df_todo, dem_smooth) {
+get_offsets <- function(df_todo, dem_smooth) {
   df_todo <- dplyr::cross_join(df_todo, search_df)
 
   df_todo$x_shifted <- df_todo$x + df_todo$x_offset
@@ -304,6 +304,12 @@ process_orbit <- function(gedidata_path) {
     shot_number <- gedidata_ap[ftp_idx, ]$shot_number
     time_ftp <- gedidata_ap[ftp_idx, ]$delta_time
     beam_nameftp <- gedidata_ap[ftp_idx, ]$beam_name
+    win_time_max <- time_ftp + step_half * (win_steps + 1)
+
+    if (! is.null(df_offsets)) {
+      # Remove unused offsets from global df_offsets
+      df_offsets <- dplyr::filter(df_offsets, delta_time >= time_ftp - step_half)
+    }
 
     df_neighbours <- filter_footprints(gedidata_ap, time_ftp, beam_nameftp)
     if (is.null(df_neighbours) || nrow(df_neighbours) == 0) {
@@ -311,23 +317,30 @@ process_orbit <- function(gedidata_path) {
       next
     }
 
-    # "Slide" along beams to process footprints
-    if (! is.null(df_offsets)) {
-      # Remove unused offsets from global df_offsets
-      df_offsets <- dplyr::filter(df_offsets, shot_number %in% df_neighbours$shot_number)
+    last_beam <- df_neighbours[df_neighbours$delta_time == max(df_neighbours$delta_time), ]
+    if (is.null(df_offsets)) {
+      df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftp - step_half, delta_time <= win_time_max)
+      df_offsets <- get_offsets(df_todo)
+      print(paste0("First offsets computation, length=", length(df_offsets)))
+    } else if (!(last_beam[1]$shot_number %in% df_offsets$shot_number)) {
       # Filter neighbours that aren't already processed to generate every offsets
-      df_todo <- dplyr::filter(df_neighbours, !(shot_number %in% df_offsets$shot_number))
-    } else {
-      df_todo <- df_neighbours
+      print(paste0("Renew offsets, length_before=", length(df_offsets)))
+      df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftpmin, delta_time <= win_time_max)
+      df_todo <- dplyr::filter(df_todo, !(shot_number %in% df_offsets$shot_number))
+      df_offsets <- rbind(df_offsets, get_offsets(df_todo, dem_smooth))
+      print(paste0("Renew offsets, length_after=", length(df_offsets)))
     }
+    print(paste0("Currently ", length(df_offsets), " offsets in total"))
+    rm(df_todo)
 
-    df_offsets <- rbind(df_offsets, make_search_window(df_todo, dem_smooth))
-    if (is.null(df_offsets) || nrow(df_offsets) == 0) {
+    df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
+    print(paste0("Using ", length(df_current_offsets), " offsets for current beam"))
+    if (is.null(df_current_offsets) || nrow(df_current_offsets) == 0) {
       next
     }
 
     # Calculate statistics for each position in search window
-    gedidata_tile <- df_offsets %>%
+    gedidata_tile <- df_current_offsets %>%
       dplyr::group_by(orbit, x_offset, y_offset) %>%
       dplyr::summarise(
         .groups = "keep",
@@ -351,7 +364,7 @@ process_orbit <- function(gedidata_path) {
 
       df_accum_bary$shot_number <- shot_number
       # Join
-      df_accum_tilespec_bary <- dplyr::inner_join(df_accum_bary, df_offsets, by = c("orbit", "shot_number", "x_offset", "y_offset"))
+      df_accum_tilespec_bary <- dplyr::inner_join(df_accum_bary, df_current_offsets, by = c("orbit", "shot_number", "x_offset", "y_offset"))
       df_accum_tilespec_bary <- dplyr::inner_join(df_accum_tilespec_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
       df_results <- rbind(df_results, df_accum_tilespec_bary)
     }
@@ -385,8 +398,8 @@ if (dir.exists(gedidata_path)) {
 #------------------------------------------
 # Execute script
 #------------------------------------------
-if (n_cores == 1) {
-  # Single core - simply lapply
+if (n_cores == 1 || length(gedi_files) < n_cores) {
+  # Single core
   for (orb in sort(gedi_files)) {
     process_orbit(orb)
   }
