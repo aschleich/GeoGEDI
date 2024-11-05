@@ -37,7 +37,7 @@ step_half <- 0.215
 
 # Number of time steps forward to keep in sliding window of beam offsets
 # Higher values will increase RAM usage but may speed up computation
-steps_forward <- 4  # 4 = more or less 1GB of RAM per orbit / job in parallel
+steps_forward <- 4  # ~= 1 to 2 GB of RAM per orbit / job in parallel
 
 # Approach to be used while selecting footprints
 # "singlebeam" uses only neighboring footprints of the same beam
@@ -119,19 +119,26 @@ filter_footprints <- function(gedidata_ap, time_ftp, beam_nameftp) {
       return(NULL)
     }
   } else {
-    quit("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
+    message("Wrong value for parameter 'approach', possible values are 'singlebeam', 'twobeams', 'allbeams'.")
+    quit("no", 1)
   }
 }
 
 get_offsets <- function(df_todo, dem_smooth) {
   df_todo <- dplyr::cross_join(df_todo, search_df)
 
+  # Extraction at all positions defined in search window settings
   df_todo$x_shifted <- df_todo$x + df_todo$x_offset
   df_todo$y_shifted <- df_todo$y + df_todo$y_offset
-
-  # Extraction at all positions defined in search window settings
-  shifted_points <- terra::vect(dplyr::select(df_todo, x_shifted, y_shifted), geom = c("x_shifted", "y_shifted"), crs = target_crs)
-  df_todo$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
+  df_todo$elev <- unlist(
+    terra::extract(
+      dem_smooth,
+      terra::vect(
+        dplyr::select(df_todo, x_shifted, y_shifted),
+        geom = c("x_shifted", "y_shifted"),
+        crs = target_crs)
+      )[2]
+    )
 
   # Get diff between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
   # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
@@ -145,7 +152,6 @@ get_offsets <- function(df_todo, dem_smooth) {
     dplyr::filter(!any(is.na(elev))) %>%
     dplyr::summarise(count = n()) %>%
     dplyr::filter(count == nb_offsets)
-
   df_todo <- df_todo %>%
     dplyr::filter(shot_number %in% df_summary$shot_number) %>%
     dplyr::select(orbit, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
@@ -175,7 +181,6 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
 
   errormap_path <- paste0(accum_dir, sep, shot, "_errormap.tif")
   terra::writeRaster(errormap, errormap_path, overwrite = TRUE)
-
   accum_path <- paste0(accum_dir, sep, shot, "_accumulation.tif")
 
   # Apply flow accumulation FD8
@@ -191,7 +196,6 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
     compress_rasters = TRUE,
     verbose_mode = TRUE
   )
-
   accum <- terra::rast(accum_path)
 
   if (error_plots) {
@@ -238,6 +242,7 @@ process_orbit <- function(gedidata_path) {
     gedidata_full <- tibble::as_tibble(readRDS(gedidata_path))
   }
 
+  # Read orbit number in filename, not in shot_number !
   orb <- substr(basename(gedidata_path), 2, 6)
   if (file.exists(paste0("O", orb, "_shifted.", ext))) {
     message(paste("File", basename(gedidata_path), "already processed."))
@@ -314,7 +319,9 @@ process_orbit <- function(gedidata_path) {
       next
     }
 
-    last_beam <- df_neighbours[df_neighbours$delta_time == max(df_neighbours$delta_time), ]
+    # Check if we have enough offsets forward of if we need to re-compute some
+    last_beam <- tail(df_neighbours, 1)
+    assert("last beam is latest", last_beam$delta_time == max(df_neighbours$delta_time))
     if (is.null(df_offsets)) {
       df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_offsets <- get_offsets(df_todo, dem_smooth)
@@ -384,6 +391,9 @@ if (dir.exists(gedidata_path)) {
   gedi_files <- paste0(gedidata_path, sep, dir(gedidata_path, pattern = pattern))
 } else if (file.exists(gedidata_path)) {
   gedi_files <- c(gedidata_path)
+} else {
+  message("Unable to find input GEDI files")
+  quit("no", 1)
 }
 
 #------------------------------------------
