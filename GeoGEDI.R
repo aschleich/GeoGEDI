@@ -34,7 +34,7 @@ step_half <- 0.215
 
 # Number of time steps forward to keep in sliding window of beam offsets
 # Higher values will increase RAM usage but may speed up computation
-steps_forward <- 4  # ~= 1 to 3 GB of RAM per orbit / job in parallel
+steps_forward <- 4 # ~= 1 to 3 GB of RAM per orbit / job in parallel
 
 # Approach to be used while selecting footprints
 # "singlebeam" uses only neighboring footprints of the same beam
@@ -133,15 +133,8 @@ get_offsets <- function(df_todo, dem_smooth) {
   # Extraction at all positions defined in search window settings
   df_todo$x_shifted <- df_todo$x + df_todo$x_offset
   df_todo$y_shifted <- df_todo$y + df_todo$y_offset
-  df_todo$elev <- unlist(
-    terra::extract(
-      dem_smooth,
-      terra::vect(
-        dplyr::select(df_todo, x_shifted, y_shifted),
-        geom = c("x_shifted", "y_shifted"),
-        crs = target_crs)
-      )[2]
-    )
+  shifted_points <- terra::vect(dplyr::select(df_todo, x_shifted, y_shifted), geom = c("x_shifted", "y_shifted"), crs = target_crs)
+  df_todo$elev <- unlist(terra::extract(dem_smooth, shifted_points)[2])
 
   # Get diff between DEMref elevation (elev) and GEDI elev_lowest (elev_ngf)
   # elev_ngf : elev_lowestmode corrected with geoid / vertical CRS shift
@@ -329,15 +322,18 @@ process_orbit <- function(gedidata_path) {
     if (is.null(df_offsets)) {
       df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_offsets <- get_offsets(df_todo, dem_smooth)
+      rm(df_todos)
     } else if (!(latest_beam[1]$shot_number %in% df_offsets$shot_number)) {
       df_offsets <- dplyr::filter(df_offsets, delta_time > time_ftp - step_half)
       df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_todo <- dplyr::filter(df_todo, !(shot_number %in% df_offsets$shot_number))
       df_offsets <- rbind(df_offsets, get_offsets(df_todo, dem_smooth))
+      rm(df_todos)
     }
 
     df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
     if (nrow(df_current_offsets) == 0) {
+      message("nrow(df_current_offsets) == 0)")
       next
     }
 
@@ -348,8 +344,8 @@ process_orbit <- function(gedidata_path) {
         .groups = "keep",
         footprint_nb = n(),
         AbsErr = mean(abs(diff)),
-        #Err = mean(diff),
-        #Corr = cor(elev, elev_ngf),
+        # Err = mean(diff),
+        # Corr = cor(elev, elev_ngf),
         RMSE = ModelMetrics::rmse(elev, elev_ngf)
       )
 
@@ -370,6 +366,7 @@ process_orbit <- function(gedidata_path) {
       df_accum_tilespec_bary <- dplyr::inner_join(df_accum_tilespec_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
       df_results <- rbind(df_results, df_accum_tilespec_bary)
     }
+    rm(df_current_offsets)
   }
 
   # Save the final file
