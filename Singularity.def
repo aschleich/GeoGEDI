@@ -1,0 +1,29 @@
+Bootstrap: docker
+From: rocker/geospatial:4.4
+
+%post
+    # Update and install necessary packages
+    apt-get update -y && apt-get install -y parallel --no-install-recommends
+
+    # Install R packages
+    R -q -e 'install.packages(c("whitebox", "ModelMetrics", "arrow", "foreach", "doParallel"))'
+    
+    # Strip debug symbols from shared libraries to reduce image size
+    strip /usr/local/lib/R/site-library/*/libs/*.so
+
+    # Install Whitebox tools within R
+    R -q -e 'library(whitebox); install_whitebox()'
+
+%environment
+    # Set environment variables for GDAL
+    export GDAL_CACHEMAX=1024
+    export GDAL_DISABLE_READDIR_ON_OPEN=true
+    export PATH="/home/ubuntu/.local/bin:$PATH"
+
+%files
+    # Copy R scripts to the specified directory
+    *.R /usr/local/bin/
+
+%runscript
+    # Default command to run when the container is executed
+    exec /bin/bash
