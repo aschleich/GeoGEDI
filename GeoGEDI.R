@@ -95,7 +95,7 @@ filter_footprints <- function(gedidata_ap, time_ftp, beam_nameftp) {
   # Set time to select neighboring footprints for cluster
   time_ftpmin <- time_ftp - step_half
   time_ftpmax <- time_ftp + step_half
-  df_neighbours <- gedidata_ap %>% dplyr::filter(delta_time > time_ftpmin, delta_time <= time_ftpmax)
+  df_neighbours <- dplyr::filter(gedidata_ap, delta_time > time_ftpmin, delta_time <= time_ftpmax)
 
   # Define cluster : select neighboring footprints depending on approach
   if (approach == "singlebeam") {
