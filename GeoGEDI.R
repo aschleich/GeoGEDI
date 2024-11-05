@@ -336,7 +336,6 @@ process_orbit <- function(gedidata_path) {
 
     df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
     if (nrow(df_current_offsets) == 0) {
-      message("nrow(df_current_offsets) == 0)")
       next
     }
 
