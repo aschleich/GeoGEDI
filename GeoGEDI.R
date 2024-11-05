@@ -20,7 +20,7 @@ target_crs <- terra::crs(terra::rast(dem_smooth_path))
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
-n_cores <- 10
+n_cores <- 1
 
 # Search window
 search_dist <- 50
@@ -322,13 +322,13 @@ process_orbit <- function(gedidata_path) {
     if (is.null(df_offsets)) {
       df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_offsets <- get_offsets(df_todo, dem_smooth)
-      rm(df_todos)
+      rm(df_todo)
     } else if (!(latest_beam[1]$shot_number %in% df_offsets$shot_number)) {
       df_offsets <- dplyr::filter(df_offsets, delta_time > time_ftp - step_half)
       df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_todo <- dplyr::filter(df_todo, !(shot_number %in% df_offsets$shot_number))
       df_offsets <- rbind(df_offsets, get_offsets(df_todo, dem_smooth))
-      rm(df_todos)
+      rm(df_todos
     }
 
     df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
