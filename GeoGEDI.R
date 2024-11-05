@@ -20,7 +20,7 @@ target_crs <- terra::crs(terra::rast(dem_smooth_path))
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
-n_cores <- 1
+n_cores <- 10
 
 # Search window
 search_dist <- 50
