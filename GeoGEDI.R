@@ -328,7 +328,7 @@ process_orbit <- function(gedidata_path) {
       df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_todo <- dplyr::filter(df_todo, !(shot_number %in% df_offsets$shot_number))
       df_offsets <- rbind(df_offsets, get_offsets(df_todo, dem_smooth))
-      rm(df_todos
+      rm(df_todo)
     }
 
     df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
