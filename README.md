@@ -109,6 +109,8 @@ Run GeoGEDI algorithm, parallelized by orbit.
 GeoGEDI.R <data dir with one file per orbit> <dem tif or vrt file>
 ```
 
+To enable multiprocessing, adjust the number of cores at the top of the script.  
+You may also edit input paths directly in order to run with RStudio.  
 Outputs will be written in current directory.  
 
 ### legacy/*.R
