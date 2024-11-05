@@ -6,18 +6,15 @@ use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FA
 
 options(digits = 12, error = traceback)
 
-sep <- "/"
-if (.Platform$OS.type == "windows") {
-  sep <- "\\"
-}
-
 #------------------------------------------
 # Input files
 #------------------------------------------
 arguments <- commandArgs(trailingOnly = TRUE)
 gedidata_path <- arguments[1]
 dem_smooth_path <- arguments[2]
-
+# To run in RStudio, fill input files here
+# gedidata_path <- "/my/local/directory"
+# dem_smooth_path <- "/my/local/vrt/file"
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
 
 #------------------------------------------
@@ -56,6 +53,7 @@ error_plots <- FALSE
 accum_dir <- "accum"
 results_dir <- "results"
 
+# Uncomment to write files in same directory as inputs
 # setwd(dirname(gedidata_path))
 for (d in c(accum_dir, results_dir)) {
   if (!dir.exists(d)) {
@@ -69,6 +67,11 @@ search_df <- merge(search_seq, search_seq, by = NULL)
 colnames(search_df) <- c("x_offset", "y_offset")
 
 nb_offsets <- nrow(search_df)
+
+sep <- "/"
+if (.Platform$OS.type == "windows") {
+  sep <- "\\"
+}
 
 if (use_arrow) {
   # Convert f64 columns to f32 in order to save disk space
@@ -226,6 +229,7 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
   max_cell_df <- cbind(max_cell_df, max_accum)
   colnames(max_cell_df) <- c("x_offset", "y_offset", "max_accum")
 
+  # Delete tmp tiff files
   unlink(c(errormap_path, accum_path))
   return(max_cell_df)
 }
@@ -421,4 +425,4 @@ if (n_cores == 1 || length(gedi_files) < n_cores) {
   stopCluster(cluster)
 }
 
-#warnings()
+summary(warnings())
