@@ -372,7 +372,6 @@ process_orbit <- function(gedidata_path) {
       df_accum_tilespec_bary <- dplyr::inner_join(df_accum_tilespec_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
       df_results <- rbind(df_results, df_accum_tilespec_bary)
     }
-    rm(df_current_offsets)
   }
 
   # Save the final file
