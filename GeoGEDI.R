@@ -318,7 +318,10 @@ process_orbit <- function(gedidata_path) {
 
     # Check if we have enough offsets forward of if we need to re-compute some
     latest_beam <- tail(df_neighbours, 1)
-    assert("latest beam is last in df", latest_beam$delta_time == max(df_neighbours$delta_time))
+    if (latest_beam$delta_time != max(df_neighbours$delta_time)) {
+      message("Dataframe is not ordered")
+      quit("no", 1)
+    }
     if (is.null(df_offsets)) {
       df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_offsets <- get_offsets(df_todo, dem_smooth)
