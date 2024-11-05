@@ -324,20 +324,22 @@ process_orbit <- function(gedidata_path) {
     }
 
     # Check if we have enough offsets forward of if we need to re-compute some
-    last_beam <- tail(df_neighbours, 1)
-    assert("last beam is latest", last_beam$delta_time == max(df_neighbours$delta_time))
+    latest_beam <- tail(df_neighbours, 1)
+    assert("latest beam is last in df", latest_beam$delta_time == max(df_neighbours$delta_time))
     if (is.null(df_offsets)) {
-      df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftp - step_half, delta_time <= win_time_max)
+      df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_offsets <- get_offsets(df_todo, dem_smooth)
-    } else if (!(last_beam[1]$shot_number %in% df_offsets$shot_number)) {
+      rm(df_todo)
+    } else if (!(latest_beam[1]$shot_number %in% df_offsets$shot_number)) {
       df_offsets <- dplyr::filter(df_offsets, delta_time > time_ftp - step_half)
-      df_todo <- gedidata_ap %>% dplyr::filter(delta_time > time_ftp - step_half, delta_time <= win_time_max)
+      df_todo <- dplyr::filter(gedidata_ap, delta_time > time_ftp - step_half, delta_time <= win_time_max)
       df_todo <- dplyr::filter(df_todo, !(shot_number %in% df_offsets$shot_number))
       df_offsets <- rbind(df_offsets, get_offsets(df_todo, dem_smooth))
+      rm(df_todo)
     }
 
     df_current_offsets <- filter(df_offsets, shot_number %in% df_neighbours$shot_number)
-    if (is.null(df_current_offsets) || nrow(df_current_offsets) == 0) {
+    if (nrow(df_current_offsets) == 0) {
       next
     }
 
@@ -370,6 +372,7 @@ process_orbit <- function(gedidata_path) {
       df_accum_tilespec_bary <- dplyr::inner_join(df_accum_tilespec_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
       df_results <- rbind(df_results, df_accum_tilespec_bary)
     }
+    rm(df_current_offsets)
   }
 
   # Save the final file
