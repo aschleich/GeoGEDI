@@ -34,7 +34,7 @@ step_half <- 0.215
 
 # Number of time steps forward to keep in sliding window of beam offsets
 # Higher values will increase RAM usage but may speed up computation
-steps_forward <- 4  # ~= 1 to 2 GB of RAM per orbit / job in parallel
+steps_forward <- 4  # ~= 1 to 3 GB of RAM per orbit / job in parallel
 
 # Approach to be used while selecting footprints
 # "singlebeam" uses only neighboring footprints of the same beam
