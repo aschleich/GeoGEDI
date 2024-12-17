@@ -3,16 +3,18 @@ From: rocker/geospatial:4.4
 
 %post
     # Update and install necessary packages
-    apt-get update -y && apt-get install -y parallel --no-install-recommends
+    apt-get update -y && apt-get install -y sudo parallel --no-install-recommends
 
     # Install R packages
     R -q -e 'install.packages(c("whitebox", "ModelMetrics", "arrow", "foreach", "doParallel"))'
-    
+
     # Strip debug symbols from shared libraries to reduce image size
     strip /usr/local/lib/R/site-library/*/libs/*.so
 
+    useradd -m -u 1001 -s /bin/bash ubuntu
+
     # Install Whitebox tools within R
-    R -q -e 'library(whitebox); install_whitebox()'
+    su - ubuntu -c "R -q -e 'library(whitebox); install_whitebox()'"
 
 %environment
     # Set environment variables for GDAL
@@ -25,5 +27,5 @@ From: rocker/geospatial:4.4
     *.R /usr/local/bin/
 
 %runscript
-    # Default command to run when the container is executed
-    exec /bin/bash
+    # Run script specified in cmd
+    su - ubuntu -c "$@"
