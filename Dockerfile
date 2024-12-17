@@ -5,6 +5,7 @@ RUN apt-get update -y && apt-get install parallel -y --no-install-recommends
 RUN R -q -e 'install.packages(c("whitebox", "ModelMetrics", "arrow", "foreach", "doParallel"))' \
     && strip /usr/local/lib/R/site-library/*/libs/*.so
 
+RUN useradd -m -s /bin/bashs ubuntu
 USER ubuntu
 WORKDIR /home/ubuntu
 RUN R -q -e 'library(whitebox) ; install_whitebox()'
