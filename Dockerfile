@@ -3,9 +3,9 @@ FROM rocker/geospatial:4.4
 RUN apt-get update -y && apt-get install parallel -y --no-install-recommends
 
 RUN R -q -e 'install.packages(c("whitebox", "ModelMetrics", "arrow", "foreach", "doParallel"))' \
-    && strip /usr/local/lib/R/site-library/*/libs/*.so
+ && strip /usr/local/lib/R/site-library/*/libs/*.so
 
-RUN useradd -m -s /bin/bashs ubuntu
+RUN useradd -m -u 1001 -s /bin/bash ubuntu
 USER ubuntu
 WORKDIR /home/ubuntu
 RUN R -q -e 'library(whitebox) ; install_whitebox()'
