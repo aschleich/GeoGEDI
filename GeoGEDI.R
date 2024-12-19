@@ -44,6 +44,7 @@ approach <- "twobeams"
 
 # Filter already applied in ExtractH5data.R
 quality_filter <- FALSE
+full_power_only <- FALSE
 
 #------------------------------------------
 # Outputs
@@ -249,14 +250,14 @@ process_orbit <- function(gedidata_path) {
   }
 
   if (quality_filter) {
-    gedidata_full <- gedidata_full %>%
-      dplyr::filter(surface_flag == "01", degrade_flag == "00", quality_flag == "01")
-    gedidata_full <- gedidata_full %>%
-      dplyr::select(surface_flag, degrade_flag, quality_flag)
-    if (nrow(gedidata_full) == 0) {
-      message("No remaining data after quality filter.")
-      return(NULL)
-    }
+    gedidata_full <- dplyr::filter(gedidata_full, surface_flag == "01", degrade_flag == "00", quality_flag == "01")
+  }
+  if (full_power_only) {
+    gedidata_full <- dplyr::filter(gedidata_full, power == "full")
+  }
+  if (nrow(gedidata_full) == 0) {
+    message("No remaining data after filters.")
+    return(NULL)
   }
 
   ## Keep only essential data
