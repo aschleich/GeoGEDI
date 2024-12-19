@@ -52,4 +52,5 @@ rsconnect/
 *.rds
 *.gpkg
 
+# Singularity images
 *.sif
