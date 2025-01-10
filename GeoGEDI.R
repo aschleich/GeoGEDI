@@ -32,8 +32,8 @@ if (length(arguments) > 2) {
     message("You must pass both `search_dist` and `search_step` arguments.")
     quit("no", 1)
   }
-  search_dist <- arguments[3]
-  search_step <- arguments[4]
+  search_dist <- as.numeric(arguments[3])
+  search_step <- as.numeric(arguments[4])
 }
 
 # Time step size in seconds (on each side of the "main" footprint)
