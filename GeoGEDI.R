@@ -6,6 +6,8 @@ use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FA
 
 options(digits = 12, error = traceback)
 
+n_cores <- 3
+
 #------------------------------------------
 # Input files
 #------------------------------------------
@@ -15,16 +17,24 @@ dem_smooth_path <- arguments[2]
 # To run in RStudio, fill input files here
 # gedidata_path <- "/my/local/directory"
 # dem_smooth_path <- "/my/local/vrt/file"
+
 target_crs <- terra::crs(terra::rast(dem_smooth_path))
 
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
-n_cores <- 3
-
 # Search window
-search_dist <- 30
-search_step <- 1
+search_dist <- 50
+search_step <- 2
+
+if (length(arguments) > 2) {
+  if (length(arguments) != 4) {
+    message("You must pass both `search_dist` and `search_step` arguments.")
+    quit("no", 1)
+  }
+  search_dist <- arguments[3]
+  search_step <- arguments[4]
+}
 
 # Time step size in seconds (on each side of the "main" footprint)
 # This fixes the time laps to consider neighboring footprints
@@ -44,12 +54,12 @@ approach <- "twobeams"
 
 # Filter already applied in ExtractH5data.R
 quality_filter <- FALSE
-full_power_only <- TRUE
+full_power_only <- FALSE
 
 #------------------------------------------
 # Outputs
 #------------------------------------------
-error_plots <- TRUE
+error_plots <- FALSE
 
 accum_dir <- "accum"
 results_dir <- "results"
