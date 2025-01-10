@@ -64,16 +64,12 @@ full_power_only <- FALSE
 # Outputs
 #------------------------------------------
 error_plots <- FALSE
-
-accum_dir <- "accum"
-results_dir <- "results"
-
 # Uncomment to write files in same directory as inputs
 # setwd(dirname(gedidata_path))
-for (d in c(accum_dir, results_dir)) {
-  if (!dir.exists(d)) {
-    dir.create(d)
-  }
+
+accum_dir <- "accum"
+if (!dir.exists(accum_dir)) {
+  dir.create(accum_dir)
 }
 
 ## Create search window
