@@ -1,4 +1,8 @@
 #!/usr/bin/env Rscript
+#################################################################
+# Compute shifts for an orbit or a directory of orbits
+# write output results as parquet files if arrow is installed
+#################################################################
 suppressPackageStartupMessages(library(bit64, warn.conflicts = FALSE))
 library(tidyr)
 library(dplyr, warn.conflicts = FALSE)
