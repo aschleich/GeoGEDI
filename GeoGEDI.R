@@ -20,11 +20,11 @@ target_crs <- terra::crs(terra::rast(dem_smooth_path))
 #------------------------------------------
 # Algorithm parameters
 #------------------------------------------
-n_cores <- 1
+n_cores <- 3
 
 # Search window
-search_dist <- 50
-search_step <- 2
+search_dist <- 30
+search_step <- 1
 
 # Time step size in seconds (on each side of the "main" footprint)
 # This fixes the time laps to consider neighboring footprints
@@ -44,12 +44,12 @@ approach <- "twobeams"
 
 # Filter already applied in ExtractH5data.R
 quality_filter <- FALSE
-full_power_only <- FALSE
+full_power_only <- TRUE
 
 #------------------------------------------
 # Outputs
 #------------------------------------------
-error_plots <- FALSE
+error_plots <- TRUE
 
 accum_dir <- "accum"
 results_dir <- "results"
@@ -209,12 +209,14 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
     cell_xy <- terra::xyFromCell(accum, cell)
     max_cell_df <- data.frame(cell_xy)
   } else if (criterion == "bary") {
+    # Find a vector of values above quantile, then find xy positions
     quant <- terra::quantile(terra::values(accum), probs = 0.99)
-    cell <- base::which.max(terra::values(accum > quant))
-    cell_xy <- terra::xyFromCell(accum, cell)
+    cells <- base::which(terra::values(accum > quant))
+    cells_xy <- terra::xyFromCell(accum, cells)
+    accum_values <- unlist(accum[cells])
     # Weighted average flowaccumulation, rounded to the same as the search_step
-    x_pond <- search_step * round((stats::weighted.mean(cell_xy[, 1], accum[cell])) / search_step)
-    y_pond <- search_step * round((stats::weighted.mean(cell_xy[, 2], accum[cell])) / search_step)
+    x_pond <- search_step * round((stats::weighted.mean(cells_xy[, 1], accum_values)) / search_step)
+    y_pond <- search_step * round((stats::weighted.mean(cells_xy[, 2], accum_values)) / search_step)
     max_cell_df <- data.frame(x_pond, y_pond)
   }
 
