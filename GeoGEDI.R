@@ -40,6 +40,8 @@ if (length(arguments) > 2) {
   search_step <- as.numeric(arguments[4])
 }
 
+round_offsets <- FALSE
+
 # Time step size in seconds (on each side of the "main" footprint)
 # This fixes the time laps to consider neighboring footprints
 # Change the value accordingly to the number of footprints you want
@@ -224,9 +226,14 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
     cells <- base::which(terra::values(accum > quant))
     cells_xy <- terra::xyFromCell(accum, cells)
     accum_values <- unlist(accum[cells])
-    # Weighted average flowaccumulation, rounded to the same as the search_step
-    x_pond <- search_step * round((stats::weighted.mean(cells_xy[, 1], accum_values)) / search_step)
-    y_pond <- search_step * round((stats::weighted.mean(cells_xy[, 2], accum_values)) / search_step)
+    # Weighted average flowaccumulation
+    x_pond <- stats::weighted.mean(cells_xy[, 1], accum_values)
+    y_pond <- stats::weighted.mean(cells_xy[, 2], accum_values)
+    # Rounded to the same as the search_step
+    if (round_offsets) {
+      x_pond <- search_step * round(x_pond / search_step)
+      y_pond <- search_step * round(y_pond / search_step)
+    }
     max_cell_df <- data.frame(x_pond, y_pond)
   }
 
