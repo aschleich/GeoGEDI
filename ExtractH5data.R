@@ -128,6 +128,10 @@ process_orbit <- function(h5_file) {
       }
     }
   )
+ # Clean tmp data in case of unzip
+  if (is_tmp) {
+    file.remove(h5_file)
+  }
   if (is.null(gedi_df)) {
     return(NULL)
   }
@@ -139,9 +143,12 @@ process_orbit <- function(h5_file) {
   gedi_df <- terra::vect(gedi_df, geom = geom_cols, crs = "epsg:4326")
   # Filter points in polygons if an ROI file was provided
   if (!is.na(roi_file)) {
-    gedi_df <- terra::mask(gedi_df, terra::vect(roi_file))
+    gedi_df <- gedi_df[terra::relate(gedi_df, terra::vect(roi_file), "intersects")]
   }
-
+  if (dim(gedi_df)[1] == 0) {
+    message("Couldn't find any samples within ROI")
+    return(NULL)
+  }
   # Transform height to altitude using geoid undulation grid
   geoid_crs <- terra::crs(geoid_grid)
   suppressWarnings({
@@ -166,10 +173,7 @@ process_orbit <- function(h5_file) {
     gedi_df <- terra::subset(gedi_df, surface_flag == "01" & degrade_flag == "00" & quality_flag == "01")
     gedi_df <- terra::subset(gedi_df, select = -c(surface_flag, degrade_flag, quality_flag))
   }
-  # Clean tmp data in case of unzip
-  if (is_tmp) {
-    file.remove(h5_file)
-  }
+  
   if (dim(gedi_df)[1] == 0) {
     message("Couldn't find any good quality samples within ROI")
     return(NULL)
