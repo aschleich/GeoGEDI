@@ -231,8 +231,8 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
     y_pond <- stats::weighted.mean(cells_xy[, 2], accum_values)
     # Rounded to the same as the search_step
     if (round_offsets) {
-      x_pond <- search_step * round(x_pond / search_step)
-      y_pond <- search_step * round(y_pond / search_step)
+      x_pond <- search_step * round((x_pond / search_step))
+      y_pond <- search_step * round((y_pond / search_step))
     }
     max_cell_df <- data.frame(x_pond, y_pond)
   }
