@@ -10,7 +10,7 @@ use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FA
 
 options(digits = 12, error = traceback)
 
-n_cores <- 3
+n_cores <- 1
 
 #------------------------------------------
 # Input files
@@ -39,8 +39,6 @@ if (length(arguments) > 2) {
   search_dist <- as.numeric(arguments[3])
   search_step <- as.numeric(arguments[4])
 }
-
-round_offsets <- FALSE
 
 # Time step size in seconds (on each side of the "main" footprint)
 # This fixes the time laps to consider neighboring footprints
@@ -163,7 +161,7 @@ get_offsets <- function(df_todo, dem_smooth) {
     dplyr::filter(count == nb_offsets)
   df_todo <- df_todo %>%
     dplyr::filter(shot_number %in% df_summary$shot_number) %>%
-    dplyr::select(orbit, shot_number, delta_time, elev_ngf, x_offset, y_offset, x_shifted, y_shifted, elev, diff)
+    dplyr::select(orbit, shot_number, delta_time, elev_ngf, x_offset, y_offset, elev, diff)
 
   return(df_todo)
 }
@@ -229,18 +227,13 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
     # Weighted average flowaccumulation
     x_pond <- stats::weighted.mean(cells_xy[, 1], accum_values)
     y_pond <- stats::weighted.mean(cells_xy[, 2], accum_values)
-    # Rounded to the same as the search_step
-    if (round_offsets) {
-      x_pond <- search_step * round((x_pond / search_step))
-      y_pond <- search_step * round((y_pond / search_step))
-    }
     max_cell_df <- data.frame(x_pond, y_pond)
   }
 
   accum <- terra::setMinMax(accum)
   max_accum <- terra::minmax(accum)[2]
   max_cell_df <- cbind(max_cell_df, max_accum)
-  colnames(max_cell_df) <- c("x_offset", "y_offset", "max_accum")
+  colnames(max_cell_df) <- c("x_offset_bary", "y_offset_bary", "max_accum")
 
   # Delete tmp tiff files
   unlink(c(errormap_path, accum_path))
@@ -383,20 +376,25 @@ process_orbit <- function(gedidata_path) {
         dplyr::do(flowaccum(., accum_dir = accum_dir, criterion = "bary", variable = "AbsErr", shot = shot_number))
 
       df_accum_bary$shot_number <- shot_number
-      # Join
-      df_accum_tilespec_bary <- dplyr::inner_join(df_accum_bary, df_current_offsets, by = c("orbit", "shot_number", "x_offset", "y_offset"))
-      df_accum_tilespec_bary <- dplyr::inner_join(df_accum_tilespec_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
-      df_results <- rbind(df_results, df_accum_tilespec_bary)
+      # Round offsets to the same as the search_step in order to retrieve AbsErr and RMSE via join
+      df_accum_bary$x_offset <- search_step * round((df_accum_bary$x_offset_bary / search_step))
+      df_accum_bary$y_offset <- search_step * round((df_accum_bary$y_offset_bary / search_step))
+      df_accum_bary <- dplyr::inner_join(df_accum_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
+      df_results <- rbind(df_results, df_accum_bary)
     }
     rm(df_current_offsets)
   }
 
-  # Save the final file
-  df_results <- dplyr::inner_join(gedidata_ap, df_results, by = c("orbit", "shot_number", "delta_time", "elev_ngf"))
-  rm(gedidata_ap)
-  df_results <- dplyr::inner_join(df_results, gedidata_full, by = c("orbit", "beam_name", "shot_number", "delta_time", "x", "y", "elev_ngf"))
+  df_results <- dplyr::inner_join(gedidata_full, df_results, by = c("orbit", "shot_number"))
   rm(gedidata_full)
+  # Recompute shifted X and Y using offset bary
+  df_results$x <- df_results$x + df_results$x_offset_bary
+  df_results$y <- df_results$y + df_results$y_offset_bary
+  # Get final DEM smooth value at shifted coordinates
+  df_results_geo <- terra::vect(dplyr::select(df_results, x, y), geom = c("x", "y"), crs = target_crs)
+  df_results$elev <- unlist(terra::extract(dem_smooth, df_results_geo)[2])
 
+  # Save the final file
   if (use_arrow) {
     arrow::write_parquet(make_arrow_table(df_results), paste0("O", orb, "_shifted.parquet"))
   } else {
