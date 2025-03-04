@@ -10,7 +10,7 @@ use_arrow <- suppressPackageStartupMessages(require("arrow", warn.conflicts = FA
 
 options(digits = 12, error = traceback)
 
-n_cores <- 1
+n_cores <- 8
 
 #------------------------------------------
 # Input files
@@ -47,8 +47,8 @@ step_half <- 0.215
 # 0.215 is around 200 full beam footprints, 0.215 seconds on each side of the "main" footprint
 
 # Number of time steps forward to keep in sliding window of beam offsets
-# Higher values will increase RAM usage but may speed up computation
-steps_forward <- 4 # ~= 1 to 3 GB of RAM per orbit / job in parallel
+# Higher values will increase RAM usage but may speed up computation, depending from search step and dist
+steps_forward <- 4 # 4 ~= 1 up to 8 GB of RAM per orbit / job in parallel
 
 # Approach to be used while selecting footprints
 # "singlebeam" uses only neighboring footprints of the same beam
