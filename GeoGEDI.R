@@ -358,10 +358,11 @@ process_orbit <- function(gedidata_path) {
       dplyr::summarise(
         .groups = "keep",
         footprint_nb = n(),
+        ElevStd = sd(elev),
         AbsErr = mean(abs(diff)),
+        RMSE = ModelMetrics::rmse(elev, elev_ngf),
         # Err = mean(diff),
         # Corr = cor(elev, elev_ngf),
-        RMSE = ModelMetrics::rmse(elev, elev_ngf)
       )
 
     # If at least X footprints in the search window
@@ -376,7 +377,7 @@ process_orbit <- function(gedidata_path) {
         dplyr::do(flowaccum(., accum_dir = accum_dir, criterion = "bary", variable = "AbsErr", shot = shot_number))
 
       df_accum_bary$shot_number <- shot_number
-      # Round offsets to the same as the search_step in order to retrieve AbsErr and RMSE via join
+      # Round offsets to the same as the search_step in order to retrieve ElevStd, AbsErr and RMSE via join
       df_accum_bary$x_offset <- search_step * round((df_accum_bary$x_offset_bary / search_step))
       df_accum_bary$y_offset <- search_step * round((df_accum_bary$y_offset_bary / search_step))
       df_accum_bary <- dplyr::inner_join(df_accum_bary, gedidata_tile, by = c("orbit", "x_offset", "y_offset"))
