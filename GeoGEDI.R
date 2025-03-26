@@ -358,7 +358,12 @@ process_orbit <- function(gedidata_path) {
       dplyr::summarise(
         .groups = "keep",
         footprint_nb = n(),
-        ElevStd = sd(elev),
+        ElevGEDIMin = min(elev_ngf),
+        ElevSmoothMin = min(elev),
+        ElevGEDIMax = max(elev_ngf),
+        ElevSmoothMax = max(elev),
+        ElevGEDIStd = sd(elev_ngf),
+        ElevSmoothStd = sd(elev),
         AbsErr = mean(abs(diff)),
         RMSE = ModelMetrics::rmse(elev, elev_ngf),
         # Err = mean(diff),
