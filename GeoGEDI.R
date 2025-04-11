@@ -28,7 +28,7 @@ target_crs <- terra::crs(terra::rast(dem_smooth_path))
 # Algorithm parameters
 #------------------------------------------
 # Search window
-search_dist <- 50
+search_dist <- 40
 search_step <- 2
 
 if (length(arguments) > 2) {
@@ -358,16 +358,13 @@ process_orbit <- function(gedidata_path) {
       dplyr::summarise(
         .groups = "keep",
         footprint_nb = n(),
-        ElevGEDIMin = min(elev_ngf),
-        ElevSmoothMin = min(elev),
-        ElevGEDIMax = max(elev_ngf),
-        ElevSmoothMax = max(elev),
-        ElevGEDIStd = sd(elev_ngf),
-        ElevSmoothStd = sd(elev),
         AbsErr = mean(abs(diff)),
         RMSE = ModelMetrics::rmse(elev, elev_ngf),
         # Err = mean(diff),
         # Corr = cor(elev, elev_ngf),
+        ElevSmoothMin = min(elev),
+        ElevSmoothMax = max(elev),
+        ElevSmoothStd = sd(elev),
       )
 
     # If at least X footprints in the search window
