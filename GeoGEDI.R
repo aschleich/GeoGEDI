@@ -244,17 +244,17 @@ flowaccum <- function(df, accum_dir, criterion, variable, shot) {
 # Main function to loop with, read and process one file per orbit
 #------------------------------------------
 process_orbit <- function(gedidata_path) {
+  orb <- substr(basename(gedidata_path), 2, 6)
   if (tools::file_ext(gedidata_path) == "parquet") {
-    ext <- "parquet"
     gedidata_full <- arrow::read_parquet(gedidata_path)
+    out_file <- paste0("O", orb, "_shifted.parquet")
   } else {
-    ext <- "rds"
     gedidata_full <- tibble::as_tibble(readRDS(gedidata_path))
+    out_file <- paste0("O", orb, "_shifted.rds")
   }
 
   # Read orbit number in filename, not in shot_number !
-  orb <- substr(basename(gedidata_path), 2, 6)
-  if (file.exists(paste0("O", orb, "_shifted.", ext))) {
+  if (file.exists(out_file)) {
     message(paste("File", basename(gedidata_path), "already processed."))
     return(NULL)
   } else {
@@ -399,9 +399,9 @@ process_orbit <- function(gedidata_path) {
 
   # Save the final file
   if (use_arrow) {
-    arrow::write_parquet(make_arrow_table(df_results), paste0("O", orb, "_shifted.parquet"))
+    arrow::write_parquet(make_arrow_table(df_results), out_file)
   } else {
-    saveRDS(df_results, paste0("O", orb, "_shifted.rds"))
+    saveRDS(df_results, out_file)
   }
 }
 
